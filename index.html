@@ -42,8 +42,8 @@ const inputBaseStyle={width:"100%",padding:"11px 14px",borderRadius:12,border:"1
 function KInput({value,onChange,onKeyDown,style,...props}){
   const ref=useRef(null);
   const composing=useRef(false);
-  useEffect(()=>{if(ref.current&&!composing.current&&ref.current.value!==value)ref.current.value=value||""},[value]);
-  return React.createElement("input",{ref,defaultValue:value,style:{...inputBaseStyle,...style},onCompositionStart:()=>{composing.current=true},onCompositionEnd:e=>{composing.current=false;if(onChange)onChange({target:ref.current})},onChange:e=>{if(!composing.current&&onChange)onChange(e)},onKeyDown:e=>{if(composing.current)return;if(onKeyDown)onKeyDown(e)},...props});
+  useEffect(()=>{if(ref.current&&!composing.current&&ref.current.value!==(value||""))ref.current.value=value||""},[value]);
+  return React.createElement("input",{ref,defaultValue:value,style:{...inputBaseStyle,...style},onCompositionStart:()=>{composing.current=true},onCompositionEnd:e=>{composing.current=false;if(onChange)onChange({target:ref.current})},onChange:e=>{if(onChange)onChange(e)},onKeyDown:e=>{if(composing.current)return;if(onKeyDown)onKeyDown(e)},...props});
 }
 
 function Setup({onOk}){
