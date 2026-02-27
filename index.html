@@ -179,25 +179,39 @@ function Main({sb}){
 
   const searchAssign=()=>{let r=[...problems];if(aBook)r=r.filter(p=>p.book_id===aBook);if(aPage.trim()){const pp=aPage.split(",").map(s=>s.trim()).filter(Boolean);r=r.filter(p=>pp.includes(p.page_num))}if(aNums.trim()){const nn=aNums.split(",").map(s=>s.trim()).filter(Boolean);r=r.filter(p=>nn.includes(p.num))}r.sort((a,b)=>(parseInt(a.page_num)||0)-(parseInt(b.page_num)||0)||(parseFloat(a.num)||0)-(parseFloat(b.num)||0));setARes(r);setAChk(new Set(r.filter(p=>!stuDn.has(p.id)).map(p=>p.id)))};
 
-  const doAssign=async()=>{const ids=[...aChk].filter(id=>!stuDn.has(id));if(!ids.length){alert("새로 출제할 문제 없음");return}setSaving(true);const dt=today();const nw=[];for(const pid of ids){const a={id:uid(),student_id:selStu,problem_id:pid,assigned_date:dt,result:"",note:""};nw.push(a);await sb.from("assignments").insert(a)}setAssignments(p=>[...nw,...p]);setAChk(new Set());alert(ids.length+"문제 출제!");setSaving(false)};
-
-  const setResult=async(aid,res)=>{setAssignments(p=>p.map(a=>a.id===aid?{...a,result:res}:a));await sb.from("assignments").update({result:res}).eq("id",aid)};
-
-  const searchPrint=()=>{let r=[...problems];if(pBook)r=r.filter(p=>p.book_id===pBook);if(pPage.trim()){const pp=pPage.split(",").map(s=>s.trim()).filter(Boolean);r=r.filter(p=>pp.includes(p.page_num))}if(pNums.trim()){const nn=pNums.split(",").map(s=>s.trim()).filter(Boolean);r=r.filter(p=>nn.includes(p.num))}r.sort((a,b)=>(parseInt(a.page_num)||0)-(parseInt(b.page_num)||0)||(parseFloat(a.num)||0)-(parseFloat(b.num)||0));setPRes(r);setPChk(new Set(r.map(p=>p.id)));setPrintPv(null)};
-
-  const loadWrong=()=>{if(!pStu)return;const wa=assignments.filter(a=>a.student_id===pStu&&a.result==="wrong");const pids=[...new Set(wa.map(a=>a.problem_id))];const r=problems.filter(p=>pids.includes(p.id));r.sort((a,b)=>(parseInt(a.page_num)||0)-(parseInt(b.page_num)||0)||(parseFloat(a.num)||0)-(parseFloat(b.num)||0));setPRes(r);setPChk(new Set(r.map(p=>p.id)));setPrintPv(null)};
-
-  // ═══ 2단 인쇄 (iframe) ═══
-  const doPrint=(mode)=>{
-    const pool=pRes.length>0?pRes:problems;
-    const sel=pool.filter(q=>pChk.has(q.id)).sort((a,b)=>(parseInt(a.page_num)||0)-(parseInt(b.page_num)||0)||(parseFloat(a.num)||0)-(parseFloat(b.num)||0));
-    if(!sel.length){alert("선택 문제 없음");return}
-    const sn=students.find(s=>s.id===pStu)?.name||"";
-    const pages=[];
-    for(let i=0;i<sel.length;i+=4)pages.push(sel.slice(i,i+4));
+  // 출제 저장 + 즉시 인쇄 (미리보기 없이 바로)
+  const doAssignPrint=async(mode)=>{
+    const allIds=[...aChk];
+    if(!allIds.length){alert("문제를 선택하세요");return}
+    // 새 문제만 출제 저장
+    const newIds=allIds.filter(id=>!stuDn.has(id));
+    if(newIds.length){
+      setSaving(true);const dt=today();const nw=[];
+      for(const pid of newIds){const a={id:uid(),student_id:selStu,problem_id:pid,assigned_date:dt,result:"",note:""};nw.push(a);await sb.from("assignments").insert(a)}
+      setAssignments(p=>[...nw,...p]);setSaving(false);
+    }
+    // 즉시 인쇄
+    const selPs=problems.filter(p=>allIds.includes(p.id)).sort((a,b)=>(parseInt(a.page_num)||0)-(parseInt(b.page_num)||0)||(parseFloat(a.num)||0)-(parseFloat(b.num)||0));
+    const sn=students.find(s=>s.id===selStu)?.name||"";
+    directPrint(selPs,sn,mode);
+    setAChk(new Set());
+  };
+  // 오답만 즉시 인쇄
+  const printWrong=(mode)=>{
+    const wa=assignments.filter(a=>a.student_id===selStu&&a.result==="wrong");
+    const pids=[...new Set(wa.map(a=>a.problem_id))];
+    const r=problems.filter(p=>pids.includes(p.id));
+    r.sort((a,b)=>(parseInt(a.page_num)||0)-(parseInt(b.page_num)||0)||(parseFloat(a.num)||0)-(parseFloat(b.num)||0));
+    if(!r.length){alert("오답이 없어요!");return}
+    const sn=students.find(s=>s.id===selStu)?.name||"";
+    directPrint(r,sn,mode);
+  };
+  // 공통 즉시 인쇄 함수
+  const directPrint=(sel,sn,mode)=>{
+    if(!sel.length){alert("인쇄할 문제가 없어요");return}
+    const pages=[];for(let i=0;i<sel.length;i+=4)pages.push(sel.slice(i,i+4));
     const lineH='<div style="border-bottom:1px solid #d6d3d1;height:20px"></div>';
     const linesHtml=Array(pLines).fill(lineH).join("");
-
     const makeCard=(q,idx)=>{
       let h='<div style="flex:1;border:1.5px solid #e7e5e4;border-radius:10px;padding:8px;background:#fafaf9">';
       h+='<div style="display:flex;align-items:center;gap:5px;margin-bottom:5px">';
@@ -211,33 +225,26 @@ function Main({sb}){
         h+='<img src="'+q.solution_url+'" style="width:100%;border-radius:6px">';
         if(mode==="both")h+='</div>';
       }
-      h+='</div>';
-      return h;
+      h+='</div>';return h;
     };
-
     let body='';
     pages.forEach((pg,pi)=>{
-      const left=pg.filter((_,i)=>i%2===0);
-      const right=pg.filter((_,i)=>i%2===1);
+      const left=pg.filter((_,i)=>i%2===0),right=pg.filter((_,i)=>i%2===1);
       body+='<div style="page-break-after:'+(pi<pages.length-1?'always':'auto')+';padding:16px;max-width:720px;margin:0 auto">';
-      // header
       body+='<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;padding-bottom:8px;border-bottom:2.5px solid #E8652D">';
       body+='<img src="'+LOGO+'" style="width:28px;height:28px;border-radius:6px">';
       body+='<div style="flex:1"><div style="font-size:8px;color:#a8a29e;font-weight:600;letter-spacing:1px">THE MONSTER ACADEMY</div>';
       body+='<div style="font-size:13px;font-weight:800;color:#1c1917">'+(sn?sn+' 학습지':'학습지')+'</div></div>';
       body+='<div style="text-align:right;font-size:8px;color:#a8a29e;line-height:1.6"><div>'+today()+'</div><div style="font-weight:700;color:#57534e">'+(pi+1)+' / '+pages.length+'</div></div></div>';
-      // 2-col grid
       body+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">';
       body+='<div style="display:flex;flex-direction:column;gap:10px">';
       left.forEach((q,qi)=>{body+=makeCard(q,pi*4+qi*2+1)});
       body+='</div><div style="display:flex;flex-direction:column;gap:10px">';
       right.forEach((q,qi)=>{body+=makeCard(q,pi*4+qi*2+2)});
       body+='</div></div>';
-      // footer
       body+='<div style="margin-top:10px;padding-top:6px;border-top:1px solid #e7e5e4;display:flex;justify-content:space-between"><span style="font-size:7px;color:#d6d3d1">더몬스터학원</span><span style="font-size:7px;color:#d6d3d1">아이의 미래를 생각합니다</span></div>';
       body+='</div>';
     });
-
     let iframe=document.getElementById("pf");
     if(!iframe){iframe=document.createElement("iframe");iframe.id="pf";iframe.style.cssText="position:fixed;left:-9999px;top:0;width:800px;height:600px;border:none";document.body.appendChild(iframe)}
     const d=iframe.contentDocument||iframe.contentWindow.document;
@@ -245,6 +252,12 @@ function Main({sb}){
     d.close();
     setTimeout(()=>{try{iframe.contentWindow.print()}catch{}},600);
   };
+
+  const setResult=async(aid,res)=>{setAssignments(p=>p.map(a=>a.id===aid?{...a,result:res}:a));await sb.from("assignments").update({result:res}).eq("id",aid)};
+
+  const searchPrint=()=>{let r=[...problems];if(pBook)r=r.filter(p=>p.book_id===pBook);if(pPage.trim()){const pp=pPage.split(",").map(s=>s.trim()).filter(Boolean);r=r.filter(p=>pp.includes(p.page_num))}if(pNums.trim()){const nn=pNums.split(",").map(s=>s.trim()).filter(Boolean);r=r.filter(p=>nn.includes(p.num))}r.sort((a,b)=>(parseInt(a.page_num)||0)-(parseInt(b.page_num)||0)||(parseFloat(a.num)||0)-(parseFloat(b.num)||0));setPRes(r);setPChk(new Set(r.map(p=>p.id)));setPrintPv(null)};
+
+  const loadWrong=()=>{if(!pStu)return;const wa=assignments.filter(a=>a.student_id===pStu&&a.result==="wrong");const pids=[...new Set(wa.map(a=>a.problem_id))];const r=problems.filter(p=>pids.includes(p.id));r.sort((a,b)=>(parseInt(a.page_num)||0)-(parseInt(b.page_num)||0)||(parseFloat(a.num)||0)-(parseFloat(b.num)||0));setPRes(r);setPChk(new Set(r.map(p=>p.id)));setPrintPv(null)};
 
   if(!loaded)return<div style={{display:"flex",justifyContent:"center",alignItems:"center",height:"100vh",background:"#faf9f7",flexDirection:"column",gap:12}}><img src={LOGO} style={{width:56,height:56,borderRadius:16,animation:"scaleIn 0.5s ease-out"}}/><div style={{fontSize:18,fontWeight:700,color:"#E8652D"}}>로딩 중...</div></div>;
 
@@ -256,57 +269,6 @@ function Main({sb}){
     return<button {...props} style={{...v[variant],...props.style}}>{children}</button>};
   const Card=({children,active,onClick,style})=><div onClick={onClick} style={{background:active?"#fff5f0":"#fff",border:active?"2px solid #E8652D":"1.5px solid #e7e5e4",borderRadius:16,padding:"12px 14px",cursor:onClick?"pointer":"default",transition:"all 0.2s",...style}}>{children}</div>;
   const bT={padding:"2px 7px",borderRadius:4,border:"1px solid #e7e5e4",background:"#fff",fontSize:10,cursor:"pointer",color:"#78716c",fontFamily:"'Outfit',sans-serif"};
-
-  // ═══ 인쇄 미리보기 (2단 × 2문제) ═══
-  if(printPv){
-    const pool=pRes.length>0?pRes:problems;
-    const sel=pool.filter(q=>pChk.has(q.id)).sort((a,b)=>(parseInt(a.page_num)||0)-(parseInt(b.page_num)||0)||(parseFloat(a.num)||0)-(parseFloat(b.num)||0));
-    const sn=students.find(s=>s.id===pStu)?.name||"";
-    const lines=Array(pLines).fill(0);
-    const pages=[];
-    for(let i=0;i<sel.length;i+=4)pages.push(sel.slice(i,i+4));
-
-    return(<div style={{maxWidth:560,margin:"0 auto",fontFamily:"'Outfit',sans-serif",padding:"16px 12px 80px"}}>
-      <button onClick={()=>setPrintPv(null)} style={{display:"flex",alignItems:"center",gap:6,padding:"10px 18px",borderRadius:12,border:"2px solid #E8652D",background:"#fff",color:"#E8652D",fontWeight:700,fontSize:14,cursor:"pointer",marginBottom:20,fontFamily:"'Outfit',sans-serif"}}>← 돌아가기</button>
-
-      {pages.map((pg,pi)=>{
-        const left=pg.filter((_,i)=>i%2===0);
-        const right=pg.filter((_,i)=>i%2===1);
-        return(<div key={pi} className="scale-in" style={{background:"#fff",borderRadius:20,padding:"20px 16px",marginBottom:24,boxShadow:"0 4px 24px rgba(0,0,0,0.06),0 1px 3px rgba(0,0,0,0.04)",border:"1px solid #eee",animationDelay:pi*0.1+"s",pageBreakAfter:pi<pages.length-1?"always":"auto"}}>
-          <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:14,paddingBottom:12,borderBottom:"2.5px solid #E8652D"}}>
-            <img src={LOGO} style={{width:32,height:32,borderRadius:8}}/>
-            <div style={{flex:1}}><div style={{fontSize:10,color:"#a8a29e",fontWeight:600,letterSpacing:1,textTransform:"uppercase"}}>The Monster Academy</div><div style={{fontSize:15,fontWeight:800,color:"#1c1917"}}>{sn?sn+" 학습지":"학습지"}</div></div>
-            <div style={{textAlign:"right",fontSize:10,color:"#a8a29e",lineHeight:1.6}}><div>{today()}</div><div style={{fontWeight:700,color:"#57534e"}}>{pi+1} / {pages.length}</div></div>
-          </div>
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
-            {[left,right].map((col,ci)=>(<div key={ci} style={{display:"flex",flexDirection:"column",gap:12}}>
-              {col.map((q,qi)=>{
-                const gIdx=pi*4+ci+qi*2;
-                return(<div key={q.id} style={{flex:1,border:"1.5px solid #e7e5e4",borderRadius:12,padding:10,background:"#fafaf9"}}>
-                  <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:6}}>
-                    <div style={{width:22,height:22,borderRadius:"50%",background:"#E8652D",color:"#fff",display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:800,flexShrink:0}}>{gIdx+1}</div>
-                    <div style={{fontSize:10,fontWeight:700,color:"#44403c",lineHeight:1.3}}>{bn(q.book_id)}<br/><span style={{color:"#a8a29e",fontWeight:500}}>{q.page_num}쪽 {q.num}번</span></div>
-                  </div>
-                  {(printPv==="question"||printPv==="both")&&(q.question_url?<img src={q.question_url} style={{width:"100%",borderRadius:8,marginBottom:pLines>0?6:0}}/>:<div style={{background:"#fff",border:"1px dashed #d6d3d1",borderRadius:8,padding:"14px 8px",textAlign:"center",color:"#a8a29e",fontSize:10,marginBottom:pLines>0?6:0}}>문제 이미지</div>)}
-                  {(printPv==="question"||printPv==="both")&&pLines>0&&<div style={{marginTop:4}}><div style={{fontSize:8,color:"#a8a29e",marginBottom:2,fontWeight:600}}>풀이</div>{lines.map((_,i)=><div key={i} style={{borderBottom:"1px solid #e7e5e4",height:18}}/>)}</div>}
-                  {(printPv==="solution"||printPv==="both")&&(<div style={{marginTop:6,paddingTop:6,borderTop:printPv==="both"?"1.5px dashed #f59e0b":"none"}}><div style={{fontSize:8,color:"#f59e0b",fontWeight:700,marginBottom:2}}>해설</div>{q.solution_url?<img src={q.solution_url} style={{width:"100%",borderRadius:8}}/>:<div style={{background:"#fffbeb",border:"1px dashed #fcd34d",borderRadius:8,padding:"12px 6px",textAlign:"center",color:"#f59e0b",fontSize:10}}>해설 이미지</div>}</div>)}
-                </div>);
-              })}
-            </div>))}
-          </div>
-          <div style={{marginTop:12,paddingTop:8,borderTop:"1px solid #e7e5e4",display:"flex",justifyContent:"space-between"}}>
-            <span style={{fontSize:8,color:"#d6d3d1"}}>더몬스터학원</span>
-            <span style={{fontSize:8,color:"#d6d3d1"}}>아이의 미래를 생각합니다</span>
-          </div>
-        </div>);
-      })}
-
-      <div style={{display:"flex",gap:10}}>
-        <button onClick={()=>setPrintPv(null)} style={{flex:1,padding:"14px 0",borderRadius:14,border:"2px solid #E8652D",background:"#fff",color:"#E8652D",fontWeight:700,fontSize:15,cursor:"pointer",fontFamily:"'Outfit',sans-serif"}}>← 돌아가기</button>
-        <button onClick={()=>doPrint(printPv)} style={{flex:1,padding:"14px 0",borderRadius:14,border:"none",background:"linear-gradient(135deg,#E8652D,#c74e1b)",color:"#fff",fontWeight:800,fontSize:15,cursor:"pointer",boxShadow:"0 4px 16px rgba(232,101,45,0.35)",fontFamily:"'Outfit',sans-serif"}}>🖨️ 인쇄하기</button>
-      </div>
-    </div>);
-  }
 
   return(<div style={{maxWidth:480,margin:"0 auto",fontFamily:"'Outfit',sans-serif",background:"#f8f9fa",minHeight:"100vh",paddingBottom:70}}>
     {/* ═══ 헤더 ═══ */}
@@ -462,7 +424,7 @@ function Main({sb}){
 
       {students.map((s,si)=>{
         const sa=assignments.filter(a=>a.student_id===s.id);const co=sa.filter(a=>a.result==="correct").length;const wr=sa.filter(a=>a.result==="wrong").length;
-        return<div key={s.id} onClick={()=>{setSelStu(selStu===s.id?"":s.id);setStuTab("assign")}} style={{display:"flex",alignItems:"center",gap:10,padding:"10px 12px",marginBottom:4,background:selStu===s.id?"#fff8f5":"#fff",border:selStu===s.id?"1.5px solid #E8652D":"1px solid #eee",borderRadius:10,cursor:"pointer"}}>
+        return<div key={s.id} onClick={()=>{setSelStu(selStu===s.id?"":s.id);setABook("");setAChk(new Set());setAExpPage("")}} style={{display:"flex",alignItems:"center",gap:10,padding:"10px 12px",marginBottom:4,background:selStu===s.id?"#fff8f5":"#fff",border:selStu===s.id?"1.5px solid #E8652D":"1px solid #eee",borderRadius:10,cursor:"pointer"}}>
           <div style={{width:34,height:34,borderRadius:10,background:getAC(si),display:"flex",alignItems:"center",justifyContent:"center",fontSize:15,fontWeight:800,color:"#fff",flexShrink:0}}>{s.name[0]}</div>
           <div style={{flex:1}}>
             <div style={{fontSize:14,fontWeight:600,color:"#333"}}>{s.name}</div>
@@ -472,35 +434,31 @@ function Main({sb}){
         </div>;
       })}
 
+      {/* ═══ 학생 선택 후: 단일 흐름 ═══ */}
       {selStu&&<div style={{marginTop:12}}>
-        <div style={{display:"flex",borderBottom:"1px solid #eee",marginBottom:10}}>
-          {[["assign","출제"],["grade","채점"]].map(([k,l])=>
-            <button key={k} onClick={()=>setStuTab(k)} style={{flex:1,padding:"8px 0",border:"none",borderBottom:stuTab===k?"2px solid #E8652D":"2px solid transparent",fontSize:12,fontWeight:stuTab===k?700:500,cursor:"pointer",fontFamily:"inherit",background:"none",color:stuTab===k?"#E8652D":"#aaa"}}>{l}{k==="grade"?" ("+stuAs.length+")":""}</button>
-          )}
-        </div>
 
-        {/* ── 출제 ── */}
-        {stuTab==="assign"&&<div>
-          <Select value={aBook} onChange={e=>{setABook(e.target.value);setAChk(new Set());setAExpPage("")}} style={{marginBottom:8,padding:"9px 12px",fontSize:13}}><option value="">교재 선택</option>{books.map(b=><option key={b.id} value={b.id}>{b.name}</option>)}</Select>
+        {/* ── STEP 1: 문제 선택 + 즉시 출력 ── */}
+        <div style={{background:"#fff",borderRadius:10,border:"1px solid #eee",padding:12,marginBottom:12}}>
+          <div style={{fontSize:13,fontWeight:700,color:"#333",marginBottom:8}}>📝 문제 선택 → 출력</div>
+          <Select value={aBook} onChange={e=>{setABook(e.target.value);setAChk(new Set())}} style={{marginBottom:8,padding:"9px 12px",fontSize:13}}><option value="">교재 선택</option>{books.map(b=><option key={b.id} value={b.id}>{b.name}</option>)}</Select>
           {aBook&&(()=>{
             const bkPs=problems.filter(p=>p.book_id===aBook&&p.question_url);
             const pgs=[...new Set(bkPs.map(p=>p.page_num))].sort((a,b)=>(parseInt(a)||0)-(parseInt(b)||0));
-            if(!pgs.length)return<div style={{textAlign:"center",padding:30,color:"#bbb",fontSize:13}}>등록된 문제 없음</div>;
-            return<div style={{background:"#fff",borderRadius:10,border:"1px solid #eee",overflow:"hidden"}}>
+            if(!pgs.length)return<div style={{textAlign:"center",padding:20,color:"#bbb",fontSize:12}}>등록된 문제 없음</div>;
+            return<div style={{background:"#fafafa",borderRadius:8,border:"1px solid #eee",overflow:"hidden"}}>
               <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
-                <thead><tr style={{background:"#fafafa"}}><th style={{padding:"6px 10px",textAlign:"left",fontWeight:600,color:"#888",borderBottom:"1px solid #eee"}}>쪽</th><th style={{padding:"6px 10px",textAlign:"left",fontWeight:600,color:"#888",borderBottom:"1px solid #eee"}}>문제번호 (터치로 선택)</th></tr></thead>
+                <thead><tr><th style={{padding:"5px 10px",textAlign:"left",fontWeight:600,color:"#888",borderBottom:"1px solid #eee",fontSize:11}}>쪽</th><th style={{padding:"5px 10px",textAlign:"left",fontWeight:600,color:"#888",borderBottom:"1px solid #eee",fontSize:11}}>문제 (회색=이미출제)</th></tr></thead>
                 <tbody>{pgs.map(pg=>{
                   const pgPs=bkPs.filter(p=>p.page_num===pg).sort((a,b)=>(parseFloat(a.num)||0)-(parseFloat(b.num)||0));
-                  return<tr key={pg} style={{borderBottom:"1px solid #f5f5f5"}}>
-                    <td style={{padding:"8px 10px",fontWeight:700,color:"#E8652D",verticalAlign:"top",whiteSpace:"nowrap",width:40}}>{pg}</td>
-                    <td style={{padding:"6px 8px"}}>
-                      <div style={{display:"flex",flexWrap:"wrap",gap:4}}>
+                  return<tr key={pg} style={{borderBottom:"1px solid #f0f0f0"}}>
+                    <td style={{padding:"6px 10px",fontWeight:700,color:"#E8652D",verticalAlign:"top",width:36,fontSize:12}}>{pg}</td>
+                    <td style={{padding:"5px 8px"}}>
+                      <div style={{display:"flex",flexWrap:"wrap",gap:3}}>
                         {pgPs.map(q=>{
                           const dn=stuDn.has(q.id);const ck=aChk.has(q.id);
-                          return<span key={q.id} onClick={()=>{if(dn)return;const s=new Set(aChk);ck?s.delete(q.id):s.add(q.id);setAChk(s)}} style={{display:"inline-block",padding:"4px 10px",borderRadius:6,fontSize:12,fontWeight:600,cursor:dn?"default":"pointer",background:dn?"#f0f0f0":ck?"#E8652D":"#fff",color:dn?"#bbb":ck?"#fff":"#555",border:dn?"1px solid #e5e5e5":ck?"1px solid #E8652D":"1px solid #ddd",opacity:dn?0.5:1,transition:"all 0.1s"}}>{q.num}{dn?" ·":""}
-                          </span>;
+                          return<span key={q.id} onClick={()=>{if(dn)return;const s=new Set(aChk);ck?s.delete(q.id):s.add(q.id);setAChk(s)}} style={{padding:"3px 9px",borderRadius:5,fontSize:11,fontWeight:600,cursor:dn?"default":"pointer",background:dn?"#f0f0f0":ck?"#E8652D":"#fff",color:dn?"#ccc":ck?"#fff":"#555",border:dn?"1px solid #e5e5e5":ck?"1px solid #E8652D":"1px solid #ddd",opacity:dn?0.5:1}}>{q.num}</span>;
                         })}
-                        <span onClick={()=>{const newIds=pgPs.filter(p=>!stuDn.has(p.id)).map(p=>p.id);const allCk=newIds.every(id=>aChk.has(id));const s=new Set(aChk);if(allCk)newIds.forEach(id=>s.delete(id));else newIds.forEach(id=>s.add(id));setAChk(s)}} style={{display:"inline-block",padding:"4px 8px",borderRadius:6,fontSize:10,fontWeight:700,cursor:"pointer",color:"#E8652D",border:"1px dashed #E8652D",background:"#fff"}}>ALL</span>
+                        <span onClick={()=>{const newIds=pgPs.filter(p=>!stuDn.has(p.id)).map(p=>p.id);const allCk=newIds.every(id=>aChk.has(id));const s=new Set(aChk);if(allCk)newIds.forEach(id=>s.delete(id));else newIds.forEach(id=>s.add(id));setAChk(s)}} style={{padding:"3px 7px",borderRadius:5,fontSize:10,fontWeight:700,cursor:"pointer",color:"#E8652D",border:"1px dashed #E8652D",background:"#fff"}}>ALL</span>
                       </div>
                     </td>
                   </tr>;
@@ -508,49 +466,64 @@ function Main({sb}){
               </table>
             </div>;
           })()}
-          {aChk.size>0&&<div style={{marginTop:10,background:"#fff",borderRadius:10,border:"1.5px solid #E8652D",overflow:"hidden"}}>
-            <div style={{padding:"6px 10px",background:"#fff8f5",borderBottom:"1px solid #fed7aa",fontSize:12,fontWeight:700,color:"#E8652D",display:"flex",justifyContent:"space-between"}}>
-              <span>선택된 문제 {aChk.size}개</span>
-              <button onClick={()=>setAChk(new Set())} style={{fontSize:10,color:"#E8652D",background:"none",border:"none",cursor:"pointer",fontFamily:"inherit",fontWeight:600}}>전체해제</button>
-            </div>
-            <div style={{padding:"6px 10px",display:"flex",flexWrap:"wrap",gap:3}}>
+          {aChk.size>0&&<div style={{marginTop:8}}>
+            <div style={{fontSize:11,color:"#888",marginBottom:6,padding:"0 2px"}}>
               {(()=>{
                 const selPs=problems.filter(p=>aChk.has(p.id)).sort((a,b)=>(parseInt(a.page_num)||0)-(parseInt(b.page_num)||0)||(parseFloat(a.num)||0)-(parseFloat(b.num)||0));
                 const grouped={};selPs.forEach(p=>{if(!grouped[p.page_num])grouped[p.page_num]=[];grouped[p.page_num].push(p)});
-                return Object.entries(grouped).map(([pg,ps])=><span key={pg} style={{fontSize:11,color:"#555"}}><b style={{color:"#E8652D"}}>{pg}p</b> {ps.map(p=>p.num).join(", ")}번 </span>);
+                return Object.entries(grouped).map(([pg,ps])=><span key={pg}><b>{pg}p</b> {ps.map(p=>p.num).join(",")}번 </span>);
               })()}
             </div>
-            <div style={{padding:"6px 10px",borderTop:"1px solid #fed7aa"}}>
-              <button onClick={doAssign} disabled={saving} style={{width:"100%",padding:"10px 0",borderRadius:8,border:"none",background:"#E8652D",color:"#fff",fontWeight:700,fontSize:14,cursor:"pointer",fontFamily:"inherit"}}>{saving?"저장 중...":"📋 "+aChk.size+"문제 출제"}</button>
+            <div style={{display:"flex",gap:4,marginBottom:4}}>
+              <span style={{fontSize:11,color:"#888",lineHeight:"32px"}}>풀이란 {pLines}줄</span>
+              <input type="range" min="0" max="12" value={pLines} onChange={e=>setPLines(parseInt(e.target.value))} style={{flex:1,accentColor:"#E8652D"}}/>
+            </div>
+            <div style={{display:"flex",gap:4}}>
+              <button onClick={()=>doAssignPrint("question")} disabled={saving} style={{flex:1,padding:"10px 0",borderRadius:8,border:"none",background:"#059669",color:"#fff",fontWeight:700,fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>📗 문제 출력</button>
+              <button onClick={()=>doAssignPrint("both")} disabled={saving} style={{flex:1,padding:"10px 0",borderRadius:8,border:"none",background:"#E8652D",color:"#fff",fontWeight:700,fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>📗+📙 출력</button>
             </div>
           </div>}
+        </div>
+
+        {/* ── STEP 2: 채점 ── */}
+        {stuAs.length>0&&<div style={{background:"#fff",borderRadius:10,border:"1px solid #eee",padding:12,marginBottom:12}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+            <div style={{fontSize:13,fontWeight:700,color:"#333"}}>✏️ 채점 <span style={{fontWeight:400,color:"#aaa",fontSize:11}}>({stuAs.length}문제)</span></div>
+            <div style={{display:"flex",gap:4}}>
+              <button onClick={()=>setAExpPage(aExpPage==="wrongOnly"?"":"wrongOnly")} style={{padding:"3px 8px",borderRadius:5,border:aExpPage==="wrongOnly"?"1.5px solid #ef4444":"1px solid #ddd",background:aExpPage==="wrongOnly"?"#fef2f2":"#fff",color:aExpPage==="wrongOnly"?"#ef4444":"#888",fontSize:10,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>{aExpPage==="wrongOnly"?"전체":"오답만"}</button>
+            </div>
+          </div>
+          <div style={{fontSize:11,color:"#aaa",marginBottom:8}}><span style={{color:"#10b981",fontWeight:600}}>✓{stuAs.filter(a=>a.result==="correct").length}</span> · <span style={{color:"#ef4444",fontWeight:600}}>✗{stuWr.length}</span> · 미채점 {stuAs.filter(a=>!a.result).length}</div>
+          {(aExpPage==="wrongOnly"?stuWr:stuAs).map(a=>{const prob=problems.find(p=>p.id===a.problem_id);if(!prob)return null;return(
+            <div key={a.id} style={{display:"flex",alignItems:"center",gap:6,padding:"6px 8px",marginBottom:2,background:a.result==="wrong"?"#fef2f2":a.result==="correct"?"#f0fdf4":"#fff",border:"1px solid "+(a.result==="wrong"?"#fecaca":a.result==="correct"?"#bbf7d0":"#f0f0f0"),borderRadius:6}}>
+              <div style={{flex:1,fontSize:11}}><span style={{fontWeight:600}}>{prob.page_num}p {prob.num}번</span> <span style={{color:"#bbb"}}>{a.assigned_date}</span></div>
+              <div style={{display:"flex",gap:2}}>
+                {[["correct","✓"],["wrong","✗"]].map(([r,em])=>
+                  <button key={r} onClick={()=>setResult(a.id,a.result===r?"":r)} style={{width:28,height:28,borderRadius:6,border:a.result===r?"2px solid "+(r==="correct"?"#10b981":"#ef4444"):"1px solid #eee",background:a.result===r?(r==="correct"?"#dcfce7":"#fef2f2"):"#fff",fontSize:12,fontWeight:800,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",color:r==="correct"?"#10b981":"#ef4444",fontFamily:"inherit"}}>{em}</button>
+                )}
+              </div>
+            </div>);
+          })}
         </div>}
 
-        {/* ── 채점 (이력+오답 통합) ── */}
-        {stuTab==="grade"&&<div>
-          {stuAs.length===0&&<div style={{textAlign:"center",padding:40,color:"#bbb",fontSize:13}}>출제된 문제 없음</div>}
-          {stuAs.length>0&&<>
-            {/* 필터 + 요약 */}
-            <div style={{display:"flex",gap:6,marginBottom:10,alignItems:"center"}}>
-              <div style={{flex:1,fontSize:12,color:"#888"}}>
-                전체 {stuAs.length} · <span style={{color:"#10b981",fontWeight:600}}>✓{stuAs.filter(a=>a.result==="correct").length}</span> · <span style={{color:"#ef4444",fontWeight:600}}>✗{stuWr.length}</span> · <span style={{color:"#aaa"}}>미채점 {stuAs.filter(a=>!a.result).length}</span>
-              </div>
-              <button onClick={()=>setAExpPage(aExpPage==="wrongOnly"?"":"wrongOnly")} style={{padding:"4px 10px",borderRadius:6,border:aExpPage==="wrongOnly"?"1.5px solid #ef4444":"1px solid #ddd",background:aExpPage==="wrongOnly"?"#fef2f2":"#fff",color:aExpPage==="wrongOnly"?"#ef4444":"#888",fontSize:11,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>{aExpPage==="wrongOnly"?"전체보기":"오답만"}</button>
-            </div>
-            {/* 문제 목록 */}
-            {(aExpPage==="wrongOnly"?stuWr:stuAs).map(a=>{const prob=problems.find(p=>p.id===a.problem_id);if(!prob)return null;return(
-              <div key={a.id} style={{display:"flex",alignItems:"center",gap:8,padding:"8px 10px",marginBottom:3,background:a.result==="wrong"?"#fef2f2":a.result==="correct"?"#f0fdf4":"#fff",border:"1px solid "+(a.result==="wrong"?"#fecaca":a.result==="correct"?"#bbf7d0":"#eee"),borderRadius:8}}>
-                <div style={{flex:1,fontSize:12}}><span style={{fontWeight:600}}>{pl(prob)}</span><br/><span style={{fontSize:10,color:"#aaa"}}>{a.assigned_date}</span></div>
-                <div style={{display:"flex",gap:3}}>
-                  {[["correct","✅"],["wrong","❌"]].map(([r,em])=>
-                    <button key={r} onClick={()=>setResult(a.id,a.result===r?"":r)} style={{width:32,height:32,borderRadius:8,border:a.result===r?"2px solid "+(r==="correct"?"#10b981":"#ef4444"):"1px solid #eee",background:a.result===r?(r==="correct"?"#f0fdf4":"#fef2f2"):"#fff",fontSize:15,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>{em}</button>
-                  )}
-                </div>
-              </div>);
-            })}
-            {/* 오답 인쇄 */}
-            {stuWr.length>0&&<button onClick={()=>{setTab("print");setPStu(selStu);setTimeout(loadWrong,100)}} style={{width:"100%",marginTop:10,padding:"12px 0",borderRadius:10,border:"none",background:"#ef4444",color:"#fff",fontWeight:700,fontSize:14,cursor:"pointer",fontFamily:"inherit"}}>🖨️ 오답 {stuWr.length}문제 인쇄</button>}
-          </>}
+        {/* ── STEP 3: 오답 재출력 ── */}
+        {stuWr.length>0&&<div style={{background:"#fef2f2",borderRadius:10,border:"1px solid #fecaca",padding:12}}>
+          <div style={{fontSize:13,fontWeight:700,color:"#ef4444",marginBottom:8}}>❌ 오답 {stuWr.length}문제</div>
+          <div style={{fontSize:11,color:"#888",marginBottom:8}}>
+            {(()=>{
+              const wrPs=stuWr.map(a=>problems.find(p=>p.id===a.problem_id)).filter(Boolean).sort((a,b)=>(parseInt(a.page_num)||0)-(parseInt(b.page_num)||0)||(parseFloat(a.num)||0)-(parseFloat(b.num)||0));
+              const grouped={};wrPs.forEach(p=>{if(!grouped[p.page_num])grouped[p.page_num]=[];grouped[p.page_num].push(p)});
+              return Object.entries(grouped).map(([pg,ps])=><span key={pg}><b>{pg}p</b> {ps.map(p=>p.num).join(",")}번 </span>);
+            })()}
+          </div>
+          <div style={{display:"flex",gap:4,marginBottom:4}}>
+            <span style={{fontSize:11,color:"#888",lineHeight:"32px"}}>풀이란 {pLines}줄</span>
+            <input type="range" min="0" max="12" value={pLines} onChange={e=>setPLines(parseInt(e.target.value))} style={{flex:1,accentColor:"#ef4444"}}/>
+          </div>
+          <div style={{display:"flex",gap:4}}>
+            <button onClick={()=>printWrong("question")} style={{flex:1,padding:"10px 0",borderRadius:8,border:"none",background:"#ef4444",color:"#fff",fontWeight:700,fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>📗 오답 출력</button>
+            <button onClick={()=>printWrong("both")} style={{flex:1,padding:"10px 0",borderRadius:8,border:"none",background:"#dc2626",color:"#fff",fontWeight:700,fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>📗+📙 출력</button>
+          </div>
         </div>}
       </div>}
     </div>}
@@ -622,9 +595,9 @@ function Main({sb}){
           </div>
           <input type="range" min="0" max="12" value={pLines} onChange={e=>setPLines(parseInt(e.target.value))} style={{width:"100%",accentColor:"#E8652D",marginBottom:8}}/>
           <div style={{display:"flex",gap:6}}>
-            <button onClick={()=>setPrintPv("question")} style={{flex:1,padding:"11px 0",borderRadius:8,border:"none",background:"#059669",color:"#fff",fontWeight:700,fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>📗 문제</button>
-            <button onClick={()=>setPrintPv("solution")} style={{flex:1,padding:"11px 0",borderRadius:8,border:"none",background:"#d97706",color:"#fff",fontWeight:700,fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>📙 해설</button>
-            <button onClick={()=>setPrintPv("both")} style={{flex:1,padding:"11px 0",borderRadius:8,border:"none",background:"#E8652D",color:"#fff",fontWeight:700,fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>📗+📙</button>
+            <button onClick={()=>{const pool=pRes.length>0?pRes:problems;const sel=pool.filter(p=>pChk.has(p.id));const sn=students.find(s=>s.id===pStu)?.name||"";directPrint(sel,sn,"question")}} style={{flex:1,padding:"11px 0",borderRadius:8,border:"none",background:"#059669",color:"#fff",fontWeight:700,fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>📗 문제</button>
+            <button onClick={()=>{const pool=pRes.length>0?pRes:problems;const sel=pool.filter(p=>pChk.has(p.id));const sn=students.find(s=>s.id===pStu)?.name||"";directPrint(sel,sn,"solution")}} style={{flex:1,padding:"11px 0",borderRadius:8,border:"none",background:"#d97706",color:"#fff",fontWeight:700,fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>📙 해설</button>
+            <button onClick={()=>{const pool=pRes.length>0?pRes:problems;const sel=pool.filter(p=>pChk.has(p.id));const sn=students.find(s=>s.id===pStu)?.name||"";directPrint(sel,sn,"both")}} style={{flex:1,padding:"11px 0",borderRadius:8,border:"none",background:"#E8652D",color:"#fff",fontWeight:700,fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>📗+📙</button>
           </div>
         </div>
       </div>}
