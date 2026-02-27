@@ -15,7 +15,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:'Outfit',sans-serif;background:#faf9f7;-webkit-tap-highlight-color:transparent}
+body{font-family:'Outfit',sans-serif;background:#f8f9fa;-webkit-tap-highlight-color:transparent}
 input,select,button,textarea{font-family:'Outfit',sans-serif}
 input:focus,select:focus{border-color:#E8652D!important;box-shadow:0 0 0 3px rgba(232,101,45,0.12)!important}
 input[type=range]{accent-color:#E8652D}
@@ -285,322 +285,283 @@ function Main({sb}){
     </div>);
   }
 
-  return(<div style={{maxWidth:500,margin:"0 auto",fontFamily:"'Outfit',sans-serif",background:"#faf9f7",minHeight:"100vh",paddingBottom:80}}>
+  return(<div style={{maxWidth:480,margin:"0 auto",fontFamily:"'Outfit',sans-serif",background:"#f8f9fa",minHeight:"100vh",paddingBottom:70}}>
     {/* ═══ 헤더 ═══ */}
-    <div style={{background:"linear-gradient(145deg,#E8652D 0%,#c74e1b 60%,#a33d14 100%)",color:"#fff",padding:"20px 18px 16px",borderRadius:"0 0 28px 28px",boxShadow:"0 8px 30px rgba(232,101,45,0.3)",position:"relative",overflow:"hidden"}}>
-      <div style={{position:"absolute",top:-20,right:-20,width:100,height:100,borderRadius:"50%",background:"rgba(255,255,255,0.06)"}}/>
-      <div style={{position:"absolute",bottom:-30,left:40,width:80,height:80,borderRadius:"50%",background:"rgba(255,255,255,0.04)"}}/>
-      <div style={{display:"flex",alignItems:"center",gap:12,position:"relative"}}>
-        <div style={{background:"rgba(255,255,255,0.15)",borderRadius:14,padding:6,backdropFilter:"blur(8px)"}}><img src={LOGO} style={{width:40,height:40,borderRadius:10}}/></div>
-        <div style={{flex:1}}><div style={{fontSize:10,opacity:0.7,fontWeight:600,letterSpacing:1.5,textTransform:"uppercase"}}>The Monster Academy</div><div style={{fontSize:22,fontWeight:900,letterSpacing:-0.5,marginTop:1}}>문제은행</div></div>
-        <div style={{display:"flex",gap:6}}>
-        <button onClick={()=>{setLoaded(false);(async()=>{try{const[b,p,s,a]=await Promise.all([sb.from("books").select("*").order("created_at"),sb.from("problems").select("id,book_id,page_num,num,question_url,solution_url").order("created_at"),sb.from("students").select("*").order("name"),sb.from("assignments").select("*").order("created_at",{ascending:false})]);if(b.data)setBooks(b.data);if(p.data)setProblems(p.data.map(x=>({...x,page_num:String(x.page_num||""),num:String(x.num||"")})));if(s.data)setStudents(s.data);if(a.data)setAssignments(a.data)}catch(e){setErrMsg("새로고침 실패: "+e.message)}setLoaded(true)})()}} style={{background:"rgba(255,255,255,0.15)",border:"none",color:"#fff",padding:"6px 10px",borderRadius:10,fontSize:14,cursor:"pointer",backdropFilter:"blur(4px)"}}>🔄</button>
-        <button onClick={()=>{if(confirm("설정 초기화?")){localStorage.removeItem("sq-cfg");location.reload()}}} style={{background:"rgba(255,255,255,0.15)",border:"none",color:"#fff",padding:"6px 14px",borderRadius:10,fontSize:12,cursor:"pointer",fontWeight:600,backdropFilter:"blur(4px)"}}>⚙️</button>
-        </div>
-      </div>
+    <div style={{background:"#fff",padding:"12px 16px",borderBottom:"2px solid #E8652D",display:"flex",alignItems:"center",gap:10}}>
+      <img src={LOGO} style={{width:32,height:32,borderRadius:8}}/>
+      <div style={{flex:1}}><div style={{fontSize:15,fontWeight:800,color:"#1a1a1a"}}>더몬스터학원</div></div>
+      <span style={{fontSize:11,color:"#888",background:"#f0f0f0",padding:"3px 10px",borderRadius:6}}>{books.length}교재 · {problems.length}문제 · {students.length}학생</span>
+      <button onClick={()=>{setLoaded(false);(async()=>{try{const[b,p,s,a]=await Promise.all([sb.from("books").select("*").order("created_at"),sb.from("problems").select("id,book_id,page_num,num,question_url,solution_url").order("created_at"),sb.from("students").select("*").order("name"),sb.from("assignments").select("*").order("created_at",{ascending:false})]);if(b.data)setBooks(b.data);if(p.data)setProblems(p.data.map(x=>({...x,page_num:String(x.page_num||""),num:String(x.num||"")})));if(s.data)setStudents(s.data);if(a.data)setAssignments(a.data)}catch(e){setErrMsg(e.message)}setLoaded(true)})()}} style={{background:"none",border:"none",fontSize:16,cursor:"pointer",padding:4}}>🔄</button>
+      <button onClick={()=>{if(confirm("설정 초기화?")){localStorage.removeItem("sq-cfg");location.reload()}}} style={{background:"none",border:"none",fontSize:14,cursor:"pointer",padding:4}}>⚙️</button>
     </div>
 
-    {/* ═══ 탭 네비 ═══ */}
-    <div style={{display:"flex",gap:6,padding:"14px 14px 0"}}>
-      {[["reg","📚 등록"],["stu","👨‍🎓 학생"],["print","🖨️ 인쇄"]].map(([k,l])=>
-        <button key={k} onClick={()=>setTab(k)} className={tab===k?"scale-in":""} style={{flex:1,padding:"11px 0",border:"none",borderRadius:14,fontSize:14,fontWeight:tab===k?800:500,cursor:"pointer",transition:"all 0.25s",fontFamily:"'Outfit',sans-serif",background:tab===k?"#fff":"transparent",color:tab===k?"#E8652D":"#a8a29e",boxShadow:tab===k?"0 2px 12px rgba(0,0,0,0.06)":"none"}}>{l}</button>
+    {/* ═══ 탭 ═══ */}
+    <div style={{display:"flex",background:"#fff",borderBottom:"1px solid #eee"}}>
+      {[["reg","등록"],["stu","학생"],["print","인쇄"]].map(([k,l])=>
+        <button key={k} onClick={()=>setTab(k)} style={{flex:1,padding:"10px 0",border:"none",borderBottom:tab===k?"2.5px solid #E8652D":"2.5px solid transparent",fontSize:13,fontWeight:tab===k?700:500,cursor:"pointer",fontFamily:"inherit",background:"none",color:tab===k?"#E8652D":"#999",transition:"all 0.15s"}}>{l}</button>
       )}
     </div>
 
-    <div style={{padding:"14px 14px 0"}}>
-    {saving&&<div style={{textAlign:"center",padding:8,background:"#fff5f0",borderRadius:12,fontSize:13,color:"#E8652D",marginBottom:10,fontWeight:700}}>☁️ 저장 중...</div>}
-    {errMsg&&<div style={{background:"#fef2f2",border:"1.5px solid #fecaca",borderRadius:12,padding:12,marginBottom:10,fontSize:13,color:"#ef4444",fontWeight:600}}>{errMsg}<button onClick={()=>setErrMsg("")} style={{float:"right",background:"none",border:"none",color:"#ef4444",cursor:"pointer",fontWeight:700}}>×</button></div>}
+    <div style={{padding:"12px 14px"}}>
+    {saving&&<div style={{textAlign:"center",padding:6,background:"#e0f2fe",borderRadius:8,fontSize:12,color:"#0369a1",marginBottom:8,fontWeight:600}}>저장 중...</div>}
+    {errMsg&&<div style={{background:"#fef2f2",borderRadius:8,padding:"8px 12px",marginBottom:8,fontSize:12,color:"#dc2626",display:"flex",justifyContent:"space-between",alignItems:"center"}}><span>{errMsg}</span><button onClick={()=>setErrMsg("")} style={{background:"none",border:"none",color:"#dc2626",cursor:"pointer",fontWeight:700,fontSize:14}}>×</button></div>}
 
-    {/* ═══ 등록 탭 ═══ */}
-    {tab==="reg"&&<div className="fade-up">
-      <div style={{fontSize:16,fontWeight:800,color:"#292524",marginBottom:12}}>📗 교재 관리</div>
-      <div style={{display:"flex",gap:8,marginBottom:10}}>
-        <input key={bnKey} ref={bnRef} placeholder="교재명 (예: 쎈 중2-1)" onKeyDown={e=>{if(e.key==="Enter"&&!e.nativeEvent.isComposing)addBk()}} style={{...iBS,flex:1}}/>
-        <Btn onClick={addBk}>추가</Btn>
+    {/* ═══════════ 등록 탭 ═══════════ */}
+    {tab==="reg"&&<div>
+      <div style={{display:"flex",gap:6,marginBottom:10}}>
+        <input key={bnKey} ref={bnRef} placeholder="교재명" onKeyDown={e=>{if(e.key==="Enter"&&!e.nativeEvent.isComposing)addBk()}} style={{...iBS,flex:1,padding:"9px 12px",fontSize:13}}/>
+        <select value={newBC} onChange={e=>setNewBC(Number(e.target.value))} style={{padding:"9px 10px",borderRadius:10,border:"1.5px solid #e5e5e5",fontSize:12,fontWeight:600,background:"#fff",fontFamily:"inherit"}}><option value={1}>1단</option><option value={2}>2단</option></select>
+        <button onClick={addBk} style={{padding:"9px 16px",borderRadius:10,border:"none",background:"#E8652D",color:"#fff",fontWeight:700,fontSize:13,cursor:"pointer",fontFamily:"inherit",whiteSpace:"nowrap"}}>+ 추가</button>
       </div>
-      <div style={{display:"flex",gap:8,marginBottom:12,padding:"10px 14px",background:"#f5f5f4",borderRadius:12}}>
-        <span style={{fontSize:13,color:"#78716c",lineHeight:"34px",fontWeight:600}}>레이아웃</span>
-        {[1,2].map(n=><button key={n} onClick={()=>setNewBC(n)} style={{padding:"7px 20px",borderRadius:10,fontSize:14,fontWeight:700,cursor:"pointer",border:newBC===n?"2px solid #E8652D":"1.5px solid #e7e5e4",background:newBC===n?"#fff5f0":"#fff",color:newBC===n?"#E8652D":"#a8a29e",fontFamily:"'Outfit',sans-serif",transition:"all 0.15s"}}>{n}단</button>)}
-      </div>
-      {books.map(b=>(
-        <Card key={b.id} active={selBook===b.id} onClick={()=>setSelBook(b.id)} style={{marginBottom:8}}>
-          <div style={{display:"flex",alignItems:"center",gap:10}}>
-            <div style={{width:36,height:36,borderRadius:10,background:selBook===b.id?"#E8652D":"#f5f5f4",display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,transition:"all 0.2s"}}>{selBook===b.id?"📖":"📚"}</div>
-            <div style={{flex:1}}>
-              <div style={{fontWeight:700,fontSize:15,color:"#292524"}}>{b.name}</div>
-              <div style={{fontSize:11,color:"#a8a29e",marginTop:1}}>{problems.filter(p=>p.book_id===b.id).length}문제 · <button onClick={e=>{e.stopPropagation();togCol(b.id)}} style={{padding:"1px 7px",borderRadius:4,fontSize:10,fontWeight:700,cursor:"pointer",border:"1px solid #e7e5e4",background:b.cols===2?"#fffbeb":"#ecfdf5",color:b.cols===2?"#d97706":"#059669",fontFamily:"'Outfit',sans-serif"}}>{b.cols===2?"2단":"1단"}</button></div>
-            </div>
-            <button onClick={e=>{e.stopPropagation();delBk(b.id)}} style={{background:"none",border:"none",color:"#d6d3d1",fontSize:18,cursor:"pointer"}}>×</button>
-          </div>
-        </Card>
-      ))}
 
-      {selBook&&<div className="fade-up" style={{marginTop:14}}>
-        {/* 등록 현황 */}
+      {books.map(b=>{
+        const cnt=problems.filter(p=>p.book_id===b.id).length;
+        return<div key={b.id} onClick={()=>setSelBook(selBook===b.id?"":b.id)} style={{display:"flex",alignItems:"center",gap:8,padding:"10px 12px",marginBottom:4,background:selBook===b.id?"#fff8f5":"#fff",border:selBook===b.id?"1.5px solid #E8652D":"1px solid #eee",borderRadius:10,cursor:"pointer"}}>
+          <span style={{fontSize:14,fontWeight:600,color:"#333",flex:1}}>{b.name}</span>
+          <span style={{fontSize:11,color:"#aaa",background:"#f5f5f5",padding:"2px 8px",borderRadius:4}}>{b.cols}단</span>
+          <span style={{fontSize:11,color:"#E8652D",fontWeight:700}}>{cnt}문제</span>
+          <button onClick={e=>{e.stopPropagation();togCol(b.id)}} style={{fontSize:10,padding:"3px 8px",borderRadius:4,border:"1px solid #ddd",background:"#fff",cursor:"pointer",fontFamily:"inherit"}}>단변경</button>
+          <button onClick={e=>{e.stopPropagation();delBk(b.id)}} style={{background:"none",border:"none",color:"#ccc",fontSize:16,cursor:"pointer"}}>×</button>
+        </div>;
+      })}
+
+      {/* 선택된 교재: 등록 현황 */}
+      {selBook&&<div style={{marginTop:12}}>
         {(()=>{
           const bkPs=problems.filter(p=>p.book_id===selBook);
-          if(!bkPs.length)return<div style={{textAlign:"center",padding:24,color:"#d6d3d1",background:"#fff",borderRadius:16,border:"1.5px solid #e7e5e4",marginBottom:14}}><div style={{fontSize:30}}>📭</div><div style={{fontSize:13,marginTop:6}}>아직 등록된 문제가 없어요</div><div style={{fontSize:11,marginTop:4,color:"#a8a29e"}}>아래에서 PDF를 업로드하여 문제를 등록해주세요</div></div>;
-          const pgs=[...new Set(bkPs.map(p=>p.page_num))].sort((a,b)=>(parseInt(a)||0)-(parseInt(b)||0));
-          const qCnt=bkPs.filter(p=>p.question_url).length;
-          const sCnt=bkPs.filter(p=>p.solution_url).length;
-          return<div style={{marginBottom:14}}>
-            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:8}}>
-              <span style={{fontSize:14,fontWeight:700,color:"#44403c"}}>📋 등록 현황</span>
-              <div style={{display:"flex",gap:6,fontSize:11}}>
-                <span style={{padding:"3px 8px",borderRadius:6,background:"#ecfdf5",color:"#059669",fontWeight:700}}>📗 {qCnt}</span>
-                <span style={{padding:"3px 8px",borderRadius:6,background:"#fffbeb",color:"#d97706",fontWeight:700}}>📙 {sCnt}</span>
-                <span style={{padding:"3px 8px",borderRadius:6,background:"#fff5f0",color:"#E8652D",fontWeight:700}}>총 {bkPs.length}문제</span>
+          if(bkPs.length>0){
+            const pgs=[...new Set(bkPs.map(p=>p.page_num))].sort((a,b)=>(parseInt(a)||0)-(parseInt(b)||0));
+            return<div style={{background:"#fff",borderRadius:10,border:"1px solid #eee",overflow:"hidden",marginBottom:12}}>
+              <div style={{padding:"8px 12px",background:"#fafafa",borderBottom:"1px solid #eee",fontSize:12,fontWeight:700,color:"#555",display:"flex",justifyContent:"space-between"}}>
+                <span>📋 등록 현황</span>
+                <span style={{fontWeight:500,color:"#E8652D"}}>{bkPs.length}문제</span>
               </div>
-            </div>
-            <div style={{background:"#fff",borderRadius:14,border:"1.5px solid #e7e5e4",overflow:"hidden"}}>
-              {pgs.map((pg,pi)=>{
+              {pgs.map(pg=>{
                 const pgPs=bkPs.filter(p=>p.page_num===pg).sort((a,b)=>(parseFloat(a.num)||0)-(parseFloat(b.num)||0));
-                return<div key={pg} style={{padding:"8px 12px",borderBottom:pi<pgs.length-1?"1px solid #f5f5f4":"none"}}>
-                  <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
-                    <span style={{fontSize:13,fontWeight:700,color:"#E8652D",minWidth:42}}>{pg}쪽</span>
-                    {pgPs.map(p=><span key={p.id} style={{padding:"3px 10px",borderRadius:8,fontSize:12,fontWeight:600,background:p.question_url&&p.solution_url?"#ecfdf5":p.question_url?"#fff5f0":"#fffbeb",color:p.question_url&&p.solution_url?"#059669":p.question_url?"#E8652D":"#d97706",border:"1px solid "+(p.question_url&&p.solution_url?"#bbf7d0":p.question_url?"#fed7aa":"#fde68a")}}>{p.num}번{!p.question_url&&!p.solution_url?" ⚠":""}{ p.question_url&&p.solution_url?" ✅":p.question_url?" 📗":" 📙"}</span>)}
-                  </div>
+                return<div key={pg} style={{padding:"6px 12px",borderBottom:"1px solid #f5f5f5",display:"flex",alignItems:"center",gap:6,flexWrap:"wrap"}}>
+                  <span style={{fontSize:12,fontWeight:700,color:"#E8652D",minWidth:36}}>{pg}쪽</span>
+                  {pgPs.map(p=><span key={p.id} style={{fontSize:11,padding:"2px 6px",borderRadius:4,background:p.question_url&&p.solution_url?"#dcfce7":p.question_url?"#fef3c7":"#fee2e2",color:p.question_url&&p.solution_url?"#166534":p.question_url?"#92400e":"#991b1b"}}>{p.num}</span>)}
                 </div>;
               })}
-            </div>
-            <div style={{display:"flex",gap:6,marginTop:6,fontSize:10,color:"#a8a29e",justifyContent:"center"}}>
-              <span>✅ = 문제+해설</span><span>📗 = 문제만</span><span>📙 = 해설만</span>
-            </div>
-          </div>;
+            </div>;
+          }
+          return<div style={{textAlign:"center",padding:20,color:"#bbb",fontSize:13,background:"#fff",borderRadius:10,border:"1px solid #eee",marginBottom:12}}>등록된 문제 없음</div>;
         })()}
 
-        {!pdfBuf?<div style={{display:"flex",gap:10}}>
-          <label style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",padding:"22px 12px",borderRadius:16,cursor:"pointer",border:"2px dashed #10b981",background:"#ecfdf5",gap:6,transition:"all 0.2s"}}><span style={{fontSize:30}}>📗</span><span style={{fontSize:13,fontWeight:700,color:"#10b981"}}>문제집 PDF</span><input type="file" accept="application/pdf" onChange={e=>loadPdf(e,"question")} hidden/></label>
-          <label style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",padding:"22px 12px",borderRadius:16,cursor:"pointer",border:"2px dashed #f59e0b",background:"#fffbeb",gap:6,transition:"all 0.2s"}}><span style={{fontSize:30}}>📙</span><span style={{fontSize:13,fontWeight:700,color:"#f59e0b"}}>해설지 PDF</span><input type="file" accept="application/pdf" onChange={e=>loadPdf(e,"solution")} hidden/></label>
+        {/* PDF 업로드 */}
+        {!pdfBuf?<div style={{display:"flex",gap:8}}>
+          <label style={{flex:1,display:"flex",alignItems:"center",justifyContent:"center",gap:6,padding:"14px 10px",borderRadius:10,cursor:"pointer",border:"1.5px dashed #10b981",background:"#f0fdf4",fontSize:13,fontWeight:600,color:"#059669"}}><span>📗</span>문제 PDF<input type="file" accept="application/pdf" onChange={e=>loadPdf(e,"question")} hidden/></label>
+          <label style={{flex:1,display:"flex",alignItems:"center",justifyContent:"center",gap:6,padding:"14px 10px",borderRadius:10,cursor:"pointer",border:"1.5px dashed #f59e0b",background:"#fffbeb",fontSize:13,fontWeight:600,color:"#d97706"}}><span>📙</span>해설 PDF<input type="file" accept="application/pdf" onChange={e=>loadPdf(e,"solution")} hidden/></label>
         </div>
-        :<div style={{background:pdfLbl==="question"?"#ecfdf5":"#fffbeb",border:"1.5px solid "+(pdfLbl==="question"?"#10b981":"#f59e0b"),borderRadius:16,padding:14}}>
-          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
-            <span style={{fontSize:14,fontWeight:700,color:pdfLbl==="question"?"#059669":"#d97706"}}>{pdfLbl==="question"?"📗 문제집":"📙 해설지"} ({pdfPages}p){is2&&<span style={{fontSize:10,background:"#fffbeb",color:"#d97706",padding:"1px 6px",borderRadius:6,marginLeft:6}}>2단</span>}</span>
-            <div style={{display:"flex",gap:5}}>
-              <label style={{...bT,cursor:"pointer"}}>{pdfLbl==="question"?"📙해설":"📗문제"}<input type="file" accept="application/pdf" onChange={e=>loadPdf(e,pdfLbl==="question"?"solution":"question")} hidden/></label>
-              <button onClick={closePdf} style={bT}>닫기</button>
+        :<div style={{background:"#fff",border:"1px solid #eee",borderRadius:10,padding:12}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+            <span style={{fontSize:13,fontWeight:700,color:pdfLbl==="question"?"#059669":"#d97706"}}>{pdfLbl==="question"?"📗 문제집":"📙 해설지"} ({pdfPages}p){is2&&<span style={{fontSize:10,color:"#d97706",marginLeft:4}}>[2단]</span>}</span>
+            <div style={{display:"flex",gap:4}}>
+              <label style={{fontSize:10,padding:"3px 8px",borderRadius:4,border:"1px solid #ddd",background:"#fff",cursor:"pointer",fontFamily:"inherit"}}>{pdfLbl==="question"?"📙해설":"📗문제"}<input type="file" accept="application/pdf" onChange={e=>loadPdf(e,pdfLbl==="question"?"solution":"question")} hidden/></label>
+              <button onClick={closePdf} style={{fontSize:10,padding:"3px 8px",borderRadius:4,border:"1px solid #ddd",background:"#fff",cursor:"pointer",fontFamily:"inherit"}}>닫기</button>
             </div>
           </div>
-          <div style={{display:"flex",gap:6,marginBottom:12}}>
-            <Btn variant="outline" onClick={()=>goPg(-1)} style={{padding:"8px 14px",fontSize:16}}>◀</Btn>
-            <Input value={pgNum} onChange={e=>setPgNum(e.target.value)} onKeyDown={e=>e.key==="Enter"&&goTo(parseInt(pgNum))} placeholder="쪽" style={{flex:1,textAlign:"center",fontSize:16,fontWeight:700}}/>
-            <Btn variant="outline" onClick={()=>goPg(1)} style={{padding:"8px 14px",fontSize:16}}>▶</Btn>
-            <Btn onClick={()=>goTo(parseInt(pgNum))} style={{padding:"8px 14px"}}>이동</Btn>
+          <div style={{display:"flex",gap:4,marginBottom:10}}>
+            <button onClick={()=>goPg(-1)} style={{padding:"6px 12px",borderRadius:8,border:"1px solid #ddd",background:"#fff",fontSize:14,cursor:"pointer"}}>◀</button>
+            <Input value={pgNum} onChange={e=>setPgNum(e.target.value)} onKeyDown={e=>e.key==="Enter"&&goTo(parseInt(pgNum))} placeholder="쪽" style={{flex:1,textAlign:"center",fontSize:15,fontWeight:700,padding:"6px 10px"}}/>
+            <button onClick={()=>goPg(1)} style={{padding:"6px 12px",borderRadius:8,border:"1px solid #ddd",background:"#fff",fontSize:14,cursor:"pointer"}}>▶</button>
+            <button onClick={()=>goTo(parseInt(pgNum))} style={{padding:"6px 14px",borderRadius:8,border:"none",background:"#E8652D",color:"#fff",fontWeight:700,fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>이동</button>
           </div>
-          {rendering&&<div style={{textAlign:"center",padding:25,color:"#a8a29e",fontSize:14}}>📄 로딩...</div>}
-          {pgImg&&is2&&<div style={{display:"flex",marginBottom:12,borderRadius:12,overflow:"hidden",border:"1.5px solid #f59e0b"}}>{["left","right"].map(s=><button key={s} onClick={()=>extSide(s)} style={{flex:1,padding:"10px 0",border:"none",fontSize:13,fontWeight:700,cursor:"pointer",background:side===s?(s==="left"?"#E8652D":"#f59e0b"):"#fff",color:side===s?"#fff":"#a8a29e",fontFamily:"'Outfit',sans-serif"}}>{s==="left"?"⬅️ 왼쪽":"➡️ 오른쪽"}</button>)}</div>}
-          {pgImg&&is2&&!showPv&&<div style={{marginBottom:10,position:"relative",borderRadius:10,overflow:"hidden",border:"1px solid #e7e5e4",opacity:0.5}}><img src={pgImg} style={{width:"100%",display:"block"}}/><div style={{position:"absolute",top:0,left:side==="left"?"0":"50%",width:"50%",height:"100%",border:"3px solid "+(side==="left"?"#E8652D":"#f59e0b"),boxSizing:"border-box"}}/><div style={{position:"absolute",top:0,left:side==="left"?"50%":"0",width:"50%",height:"100%",background:"rgba(0,0,0,0.3)"}}/></div>}
+          {rendering&&<div style={{textAlign:"center",padding:20,color:"#aaa",fontSize:13}}>로딩...</div>}
+          {pgImg&&is2&&<div style={{display:"flex",marginBottom:8,borderRadius:8,overflow:"hidden",border:"1px solid #ddd"}}>{["left","right"].map(s=><button key={s} onClick={()=>extSide(s)} style={{flex:1,padding:"8px 0",border:"none",fontSize:12,fontWeight:700,cursor:"pointer",background:side===s?"#E8652D":"#fff",color:side===s?"#fff":"#999",fontFamily:"inherit"}}>{s==="left"?"⬅ 왼쪽":"➡ 오른쪽"}</button>)}</div>}
+          {pgImg&&is2&&!showPv&&<div style={{marginBottom:8,position:"relative",borderRadius:8,overflow:"hidden",border:"1px solid #ddd",opacity:0.5}}><img src={pgImg} style={{width:"100%",display:"block"}}/><div style={{position:"absolute",top:0,left:side==="left"?"0":"50%",width:"50%",height:"100%",border:"2px solid #E8652D",boxSizing:"border-box"}}/><div style={{position:"absolute",top:0,left:side==="left"?"50%":"0",width:"50%",height:"100%",background:"rgba(0,0,0,0.3)"}}/></div>}
           {workImg&&!showPv&&<>
-            <div style={{background:"#fff",border:"1.5px solid #e7e5e4",borderRadius:12,padding:"8px 14px",marginBottom:10,fontSize:13,color:"#78716c",fontWeight:500}}>👆 <b>문제 시작점</b> 터치{is2&&<span style={{color:"#f59e0b"}}> ({side==="left"?"왼쪽":"오른쪽"})</span>}</div>
-            {markers.length>0&&<div style={{marginBottom:10}}>
-              <div style={{fontSize:12,fontWeight:700,color:"#E8652D",marginBottom:4}}>📌 {markers.length}개</div>
-              {markers.map((m,i)=><div key={i} style={{display:"flex",alignItems:"center",gap:4,marginBottom:3,padding:"4px 8px",background:"#fff",borderRadius:10,border:"1px solid #e7e5e4"}}>
-                <input value={m.num} onChange={e=>updMk(i,e.target.value)} style={{width:50,padding:"3px 6px",border:"1px solid #e7e5e4",borderRadius:6,fontSize:12,fontWeight:600,textAlign:"center",outline:"none"}}/>
-                <span style={{fontSize:10,color:"#a8a29e"}}>번</span>
-                <button onClick={()=>mvMk(i,-0.015)} style={bT}>▲</button><button onClick={()=>mvMk(i,0.015)} style={bT}>▼</button>
-                <span style={{flex:1}}/><button onClick={()=>rmMk(i)} style={{...bT,color:"#ef4444"}}>✕</button>
+            <div style={{fontSize:12,color:"#888",marginBottom:6}}>👆 문제 시작점을 터치하세요{is2&&<span style={{color:"#d97706"}}> ({side==="left"?"왼쪽":"오른쪽"})</span>}</div>
+            {markers.length>0&&<div style={{marginBottom:8}}>
+              {markers.map((m,i)=><div key={i} style={{display:"flex",alignItems:"center",gap:4,marginBottom:2,padding:"3px 6px",background:"#f9f9f9",borderRadius:6,fontSize:12}}>
+                <input value={m.num} onChange={e=>updMk(i,e.target.value)} style={{width:40,padding:"2px 4px",border:"1px solid #ddd",borderRadius:4,fontSize:11,fontWeight:600,textAlign:"center",outline:"none"}}/>
+                <span style={{color:"#aaa",fontSize:10}}>번</span>
+                <button onClick={()=>mvMk(i,-0.015)} style={{fontSize:9,padding:"1px 4px",border:"1px solid #ddd",borderRadius:3,background:"#fff",cursor:"pointer"}}>▲</button>
+                <button onClick={()=>mvMk(i,0.015)} style={{fontSize:9,padding:"1px 4px",border:"1px solid #ddd",borderRadius:3,background:"#fff",cursor:"pointer"}}>▼</button>
+                <span style={{flex:1}}/><button onClick={()=>rmMk(i)} style={{fontSize:11,background:"none",border:"none",color:"#ccc",cursor:"pointer"}}>✕</button>
               </div>)}
-              <div style={{display:"flex",gap:6,marginTop:6}}>
-                <Btn variant="green" onClick={genPv} style={{flex:1,padding:"10px 0"}}>✂️ 미리보기 ({markers.length})</Btn>
-                <Btn variant="outline" onClick={()=>{setMarkers([]);setShowPv(false)}} style={{padding:"10px 14px"}}>초기화</Btn>
+              <div style={{display:"flex",gap:4,marginTop:4}}>
+                <button onClick={genPv} style={{flex:1,padding:"8px 0",borderRadius:8,border:"none",background:"#059669",color:"#fff",fontWeight:700,fontSize:12,cursor:"pointer",fontFamily:"inherit"}}>✂️ 미리보기 ({markers.length})</button>
+                <button onClick={()=>{setMarkers([]);setShowPv(false)}} style={{padding:"8px 12px",borderRadius:8,border:"1px solid #ddd",background:"#fff",fontSize:12,cursor:"pointer",fontFamily:"inherit"}}>초기화</button>
               </div>
             </div>}
-            <div style={{position:"relative",borderRadius:12,overflow:"hidden",border:"2.5px solid "+(pdfLbl==="question"?"#E8652D":"#f59e0b")}} onClick={onTap}><img ref={imgRef} src={workImg} style={{width:"100%",display:"block",pointerEvents:"none"}}/>{markers.map((m,i)=><div key={i} style={{position:"absolute",left:0,top:m.y*100+"%",width:"100%",borderTop:"2.5px dashed #ef4444",pointerEvents:"none"}}><span style={{fontSize:9,fontWeight:800,color:"#fff",background:"#ef4444",padding:"1px 6px",borderRadius:"0 0 6px 0"}}>{m.num}번▼</span></div>)}</div>
-            {!markers.length&&<div style={{textAlign:"center",padding:10,color:"#d6d3d1",fontSize:11,marginTop:5}}>☝️ 문제 시작점 터치</div>}
+            <div style={{position:"relative",borderRadius:8,overflow:"hidden",border:"2px solid "+(pdfLbl==="question"?"#059669":"#d97706")}} onClick={onTap}><img ref={imgRef} src={workImg} style={{width:"100%",display:"block",pointerEvents:"none"}}/>{markers.map((m,i)=><div key={i} style={{position:"absolute",left:0,top:m.y*100+"%",width:"100%",borderTop:"2px dashed #ef4444",pointerEvents:"none"}}><span style={{fontSize:9,fontWeight:800,color:"#fff",background:"#ef4444",padding:"1px 5px",borderRadius:"0 0 4px 0"}}>{m.num}▼</span></div>)}</div>
           </>}
-          {showPv&&pvSlices.length>0&&<div className="fade-up">
-            <div style={{fontSize:13,fontWeight:700,color:pdfLbl==="question"?"#E8652D":"#f59e0b",marginBottom:8}}>✂️ {pvSlices.length}개{is2&&<span style={{color:"#f59e0b"}}> ({side==="left"?"왼쪽":"오른쪽"})</span>}</div>
-            {pvSlices.map((s,i)=><div key={i} style={{marginBottom:8,border:"1.5px solid #e7e5e4",borderRadius:12,overflow:"hidden",background:"#fff"}}>
-              <div style={{padding:"6px 10px",background:pdfLbl==="question"?"#ecfdf5":"#fffbeb",fontWeight:700,fontSize:12,color:pdfLbl==="question"?"#059669":"#d97706",display:"flex",alignItems:"center",gap:5}}><input value={s.num} onChange={e=>{const u=[...pvSlices];u[i]={...u[i],num:e.target.value};setPvSlices(u)}} style={{width:50,padding:"2px 5px",border:"1px solid #e7e5e4",borderRadius:6,fontSize:12,fontWeight:600,textAlign:"center",outline:"none"}}/><span>번</span></div>
+          {showPv&&pvSlices.length>0&&<div>
+            <div style={{fontSize:12,fontWeight:700,color:"#555",marginBottom:6}}>✂️ {pvSlices.length}개 미리보기</div>
+            {pvSlices.map((s,i)=><div key={i} style={{marginBottom:6,border:"1px solid #eee",borderRadius:8,overflow:"hidden"}}>
+              <div style={{padding:"4px 8px",background:"#f9f9f9",fontSize:11,fontWeight:700,color:"#555",display:"flex",alignItems:"center",gap:4}}><input value={s.num} onChange={e=>{const u=[...pvSlices];u[i]={...u[i],num:e.target.value};setPvSlices(u)}} style={{width:40,padding:"2px 4px",border:"1px solid #ddd",borderRadius:4,fontSize:11,fontWeight:600,textAlign:"center",outline:"none"}}/>번</div>
               <img src={s.dataUrl} style={{width:"100%",display:"block"}}/>
             </div>)}
-            <div style={{display:"flex",gap:6,marginTop:8}}>
-              <Btn variant="outline" onClick={()=>setShowPv(false)} style={{flex:1,padding:"11px 0"}}>← 다시</Btn>
-              <Btn variant="green" onClick={saveSl} disabled={saving} style={{flex:2,padding:"11px 0",fontSize:15,opacity:saving?0.6:1}}>{saving?"☁️ 저장 중...":"✅ "+pvSlices.length+"개 저장"}</Btn>
+            <div style={{display:"flex",gap:4,marginTop:6}}>
+              <button onClick={()=>setShowPv(false)} style={{flex:1,padding:"9px 0",borderRadius:8,border:"1px solid #ddd",background:"#fff",fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>← 다시</button>
+              <button onClick={saveSl} disabled={saving} style={{flex:2,padding:"9px 0",borderRadius:8,border:"none",background:"#059669",color:"#fff",fontWeight:700,fontSize:13,cursor:"pointer",fontFamily:"inherit",opacity:saving?0.6:1}}>{saving?"저장 중...":"✅ "+pvSlices.length+"개 저장"}</button>
             </div>
           </div>}
-          {!rendering&&!pgImg&&<div style={{padding:30,textAlign:"center",color:"#d6d3d1",background:"#fff",borderRadius:14,border:"1.5px dashed #e7e5e4",fontSize:13}}>📖 쪽번호 → 이동</div>}
-          {pgProbs.length>0&&<div style={{marginTop:10}}>
-            <div style={{fontSize:12,fontWeight:700,color:"#E8652D",marginBottom:4}}>✅ {pgNum}쪽 ({pgProbs.length}문제)</div>
-            {pgProbs.map(p=><div key={p.id} style={{display:"flex",alignItems:"center",gap:6,background:"#fff5f0",border:"1.5px solid #E8652D",borderRadius:10,padding:6,marginBottom:3}}>
-              <span style={{fontSize:11,fontWeight:700,color:"#E8652D",minWidth:34}}>{p.num}번</span>
-              <div style={{flex:1,fontSize:10,color:"#E8652D",display:"flex",gap:4}}>{p.question_url&&<span>📗</span>}{p.solution_url&&<span>📙</span>}{p.question_url&&p.solution_url&&<span>✅</span>}{p.question_url&&!p.solution_url&&<span style={{color:"#f59e0b"}}>⚠해설없음</span>}</div>
-              <button onClick={()=>delProb(p.id)} style={{background:"none",border:"none",color:"#d6d3d1",fontSize:14,cursor:"pointer"}}>×</button>
+          {!rendering&&!pgImg&&<div style={{padding:20,textAlign:"center",color:"#ccc",background:"#fafafa",borderRadius:8,border:"1px dashed #ddd",fontSize:12}}>쪽번호 입력 → 이동</div>}
+          {pgProbs.length>0&&<div style={{marginTop:8}}>
+            <div style={{fontSize:11,fontWeight:700,color:"#555",marginBottom:3}}>{pgNum}쪽 · {pgProbs.length}문제</div>
+            {pgProbs.map(p=><div key={p.id} style={{display:"flex",alignItems:"center",gap:4,padding:"4px 8px",marginBottom:2,background:"#f9f9f9",borderRadius:6,fontSize:11}}>
+              <span style={{fontWeight:700,color:"#E8652D",minWidth:30}}>{p.num}번</span>
+              <span style={{color:"#aaa"}}>{p.question_url?"📗":""}{p.solution_url?"📙":""}{p.question_url&&p.solution_url?" ✅":!p.question_url&&!p.solution_url?" ⚠":""}</span>
+              <span style={{flex:1}}/><button onClick={()=>delProb(p.id)} style={{background:"none",border:"none",color:"#ddd",fontSize:12,cursor:"pointer"}}>×</button>
             </div>)}
           </div>}
         </div>}
       </div>}
     </div>}
 
-    {/* ═══ 학생 탭 ═══ */}
-    {tab==="stu"&&<div className="fade-up">
-      <div style={{fontSize:16,fontWeight:800,color:"#292524",marginBottom:12}}>👨‍🎓 학생 관리</div>
-      <div style={{display:"flex",gap:8,marginBottom:14}}>
-        <input key={snKey} ref={snRef} placeholder="학생 이름" onKeyDown={e=>{if(e.key==="Enter"&&!e.nativeEvent.isComposing)addStu()}} style={{...iBS,flex:1}}/>
-        <Btn onClick={addStu}>추가</Btn>
+    {/* ═══════════ 학생 탭 ═══════════ */}
+    {tab==="stu"&&<div>
+      <div style={{display:"flex",gap:6,marginBottom:10}}>
+        <input key={snKey} ref={snRef} placeholder="학생 이름" onKeyDown={e=>{if(e.key==="Enter"&&!e.nativeEvent.isComposing)addStu()}} style={{...iBS,flex:1,padding:"9px 12px",fontSize:13}}/>
+        <button onClick={addStu} style={{padding:"9px 16px",borderRadius:10,border:"none",background:"#E8652D",color:"#fff",fontWeight:700,fontSize:13,cursor:"pointer",fontFamily:"inherit",whiteSpace:"nowrap"}}>+ 추가</button>
       </div>
+
       {students.map((s,si)=>{
-        const sa=assignments.filter(a=>a.student_id===s.id);const co=sa.filter(a=>a.result==="correct").length;const wr=sa.filter(a=>a.result==="wrong").length;const pct=sa.length?Math.round(co/sa.length*100):0;
-        return(<Card key={s.id} active={selStu===s.id} onClick={()=>{setSelStu(s.id);setStuTab("assign")}} style={{marginBottom:8}}>
-          <div style={{display:"flex",alignItems:"center",gap:12}}>
-            <div style={{width:42,height:42,borderRadius:14,background:"linear-gradient(135deg,"+getAC(si)+","+getAC(si)+"dd)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,fontWeight:900,color:"#fff",flexShrink:0,boxShadow:"0 4px 12px "+getAC(si)+"40"}}>{s.name[0]}</div>
-            <div style={{flex:1}}>
-              <div style={{fontWeight:700,fontSize:15,color:"#292524"}}>{s.name}</div>
-              <div style={{display:"flex",gap:8,marginTop:4,fontSize:11}}>
-                <span style={{color:"#a8a29e"}}>📋 {sa.length}</span>
-                <span style={{color:"#10b981",fontWeight:600}}>✅ {co}</span>
-                <span style={{color:"#ef4444",fontWeight:600}}>❌ {wr}</span>
-                {sa.length>0&&<span style={{padding:"0 8px",borderRadius:6,fontWeight:700,fontSize:10,lineHeight:"18px",background:pct>=70?"#ecfdf5":pct>=40?"#fffbeb":"#fef2f2",color:pct>=70?"#10b981":pct>=40?"#f59e0b":"#ef4444"}}>{pct}%</span>}
-              </div>
-            </div>
-            <button onClick={e=>{e.stopPropagation();delStu(s.id)}} style={{background:"none",border:"none",color:"#d6d3d1",fontSize:18,cursor:"pointer"}}>×</button>
+        const sa=assignments.filter(a=>a.student_id===s.id);const co=sa.filter(a=>a.result==="correct").length;const wr=sa.filter(a=>a.result==="wrong").length;
+        return<div key={s.id} onClick={()=>{setSelStu(selStu===s.id?"":s.id);setStuTab("assign")}} style={{display:"flex",alignItems:"center",gap:10,padding:"10px 12px",marginBottom:4,background:selStu===s.id?"#fff8f5":"#fff",border:selStu===s.id?"1.5px solid #E8652D":"1px solid #eee",borderRadius:10,cursor:"pointer"}}>
+          <div style={{width:34,height:34,borderRadius:10,background:getAC(si),display:"flex",alignItems:"center",justifyContent:"center",fontSize:15,fontWeight:800,color:"#fff",flexShrink:0}}>{s.name[0]}</div>
+          <div style={{flex:1}}>
+            <div style={{fontSize:14,fontWeight:600,color:"#333"}}>{s.name}</div>
+            <div style={{fontSize:11,color:"#aaa",marginTop:2}}>출제 {sa.length} · <span style={{color:"#10b981"}}>✓{co}</span> · <span style={{color:"#ef4444"}}>✗{wr}</span></div>
           </div>
-        </Card>);
+          <button onClick={e=>{e.stopPropagation();delStu(s.id)}} style={{background:"none",border:"none",color:"#ddd",fontSize:16,cursor:"pointer"}}>×</button>
+        </div>;
       })}
 
-      {selStu&&<div className="fade-up" style={{marginTop:16}}>
-        <div style={{display:"flex",gap:4,padding:4,background:"#f5f5f4",borderRadius:14,marginBottom:14}}>
-          {[["assign","📋 출제"],["history","📊 이력"],["wrong","❌ 오답"]].map(([k,l])=>
-            <button key={k} onClick={()=>setStuTab(k)} style={{flex:1,padding:"9px 0",border:"none",borderRadius:11,fontSize:13,fontWeight:stuTab===k?700:500,cursor:"pointer",fontFamily:"'Outfit',sans-serif",transition:"all 0.2s",background:stuTab===k?(k==="wrong"?"#ef4444":"#E8652D"):"transparent",color:stuTab===k?"#fff":"#a8a29e",boxShadow:stuTab===k?"0 2px 8px rgba(0,0,0,0.1)":"none"}}>{l}</button>
+      {selStu&&<div style={{marginTop:12}}>
+        <div style={{display:"flex",borderBottom:"1px solid #eee",marginBottom:10}}>
+          {[["assign","출제"],["history","이력"],["wrong","오답"]].map(([k,l])=>
+            <button key={k} onClick={()=>setStuTab(k)} style={{flex:1,padding:"8px 0",border:"none",borderBottom:stuTab===k?"2px solid "+(k==="wrong"?"#ef4444":"#E8652D"):"2px solid transparent",fontSize:12,fontWeight:stuTab===k?700:500,cursor:"pointer",fontFamily:"inherit",background:"none",color:stuTab===k?(k==="wrong"?"#ef4444":"#E8652D"):"#aaa"}}>{l}</button>
           )}
         </div>
 
+        {/* ── 출제 ── */}
         {stuTab==="assign"&&<div>
-          <Select value={aBook} onChange={e=>{setABook(e.target.value);setAChk(new Set());setAExpPage("")}}><option value="">📚 교재 선택</option>{books.map(b=><option key={b.id} value={b.id}>{b.name}</option>)}</Select>
+          <Select value={aBook} onChange={e=>{setABook(e.target.value);setAChk(new Set());setAExpPage("")}} style={{marginBottom:8,padding:"9px 12px",fontSize:13}}><option value="">교재 선택</option>{books.map(b=><option key={b.id} value={b.id}>{b.name}</option>)}</Select>
           {aBook&&(()=>{
             const bkPs=problems.filter(p=>p.book_id===aBook);
             const pgs=[...new Set(bkPs.map(p=>p.page_num))].sort((a,b)=>(parseInt(a)||0)-(parseInt(b)||0));
-            if(!pgs.length)return<div style={{textAlign:"center",padding:40,color:"#d6d3d1"}}><div style={{fontSize:36}}>📭</div><div style={{fontSize:13,marginTop:8}}>등록된 문제가 없어요</div></div>;
-            return<div style={{marginTop:10,display:"flex",flexDirection:"column",gap:6}}>
-              {pgs.map(pg=>{
-                const pgPs=bkPs.filter(p=>p.page_num===pg).sort((a,b)=>(parseFloat(a.num)||0)-(parseFloat(b.num)||0));
-                const open=aExpPage===pg;
-                const chkCnt=pgPs.filter(p=>aChk.has(p.id)).length;
-                const dnCnt=pgPs.filter(p=>stuDn.has(p.id)).length;
-                return<div key={pg}>
-                  <div onClick={()=>setAExpPage(open?"":pg)} style={{display:"flex",alignItems:"center",gap:10,padding:"10px 14px",background:open?"#fff5f0":"#fff",border:open?"1.5px solid #E8652D":"1.5px solid #e7e5e4",borderRadius:12,cursor:"pointer",transition:"all 0.15s"}}>
-                    <span style={{fontSize:14,fontWeight:700,color:open?"#E8652D":"#44403c"}}>{open?"▼":"▶"} {pg}쪽</span>
-                    <span style={{fontSize:11,color:"#a8a29e"}}>{pgPs.length}문제</span>
-                    {dnCnt>0&&<span style={{fontSize:10,color:"#a8a29e",background:"#f5f5f4",padding:"2px 6px",borderRadius:4}}>출제됨 {dnCnt}</span>}
-                    {chkCnt>0&&<span style={{fontSize:10,color:"#fff",background:"#E8652D",padding:"2px 8px",borderRadius:10,fontWeight:700,marginLeft:"auto"}}>{chkCnt}</span>}
-                  </div>
-                  {open&&<div style={{display:"flex",flexWrap:"wrap",gap:6,padding:"10px 8px",background:"#fafaf9",borderRadius:"0 0 12px 12px",border:"1px solid #e7e5e4",borderTop:"none"}}>
-                    {pgPs.map(q=>{
-                      const dn=stuDn.has(q.id);const ck=aChk.has(q.id);
-                      return<div key={q.id} onClick={()=>{if(dn)return;const s=new Set(aChk);ck?s.delete(q.id):s.add(q.id);setAChk(s)}} style={{padding:"8px 14px",borderRadius:10,border:dn?"1.5px solid #e7e5e4":ck?"2px solid #E8652D":"1.5px solid #e7e5e4",background:dn?"#f5f5f4":ck?"#fff5f0":"#fff",cursor:dn?"default":"pointer",opacity:dn?0.5:1,transition:"all 0.15s",minWidth:50,textAlign:"center"}}>
-                        <div style={{fontSize:14,fontWeight:700,color:dn?"#a8a29e":ck?"#E8652D":"#44403c"}}>{q.num}번</div>
-                        {dn&&<div style={{fontSize:9,color:"#a8a29e",marginTop:1}}>출제됨</div>}
-                      </div>;
-                    })}
-                    <div onClick={()=>{const newIds=pgPs.filter(p=>!stuDn.has(p.id)).map(p=>p.id);const allChecked=newIds.every(id=>aChk.has(id));const s=new Set(aChk);if(allChecked)newIds.forEach(id=>s.delete(id));else newIds.forEach(id=>s.add(id));setAChk(s)}} style={{padding:"8px 12px",borderRadius:10,border:"1.5px dashed #E8652D",background:"#fff",cursor:"pointer",minWidth:50,textAlign:"center"}}>
-                      <div style={{fontSize:11,fontWeight:700,color:"#E8652D"}}>전체</div>
-                    </div>
-                  </div>}
-                </div>;
-              })}
+            if(!pgs.length)return<div style={{textAlign:"center",padding:30,color:"#bbb",fontSize:13}}>등록된 문제 없음</div>;
+            return<div style={{background:"#fff",borderRadius:10,border:"1px solid #eee",overflow:"hidden"}}>
+              <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
+                <thead><tr style={{background:"#fafafa"}}><th style={{padding:"6px 10px",textAlign:"left",fontWeight:600,color:"#888",borderBottom:"1px solid #eee"}}>쪽</th><th style={{padding:"6px 10px",textAlign:"left",fontWeight:600,color:"#888",borderBottom:"1px solid #eee"}}>문제번호 (터치로 선택)</th></tr></thead>
+                <tbody>{pgs.map(pg=>{
+                  const pgPs=bkPs.filter(p=>p.page_num===pg).sort((a,b)=>(parseFloat(a.num)||0)-(parseFloat(b.num)||0));
+                  return<tr key={pg} style={{borderBottom:"1px solid #f5f5f5"}}>
+                    <td style={{padding:"8px 10px",fontWeight:700,color:"#E8652D",verticalAlign:"top",whiteSpace:"nowrap",width:40}}>{pg}</td>
+                    <td style={{padding:"6px 8px"}}>
+                      <div style={{display:"flex",flexWrap:"wrap",gap:4}}>
+                        {pgPs.map(q=>{
+                          const dn=stuDn.has(q.id);const ck=aChk.has(q.id);
+                          return<span key={q.id} onClick={()=>{if(dn)return;const s=new Set(aChk);ck?s.delete(q.id):s.add(q.id);setAChk(s)}} style={{display:"inline-block",padding:"4px 10px",borderRadius:6,fontSize:12,fontWeight:600,cursor:dn?"default":"pointer",background:dn?"#f0f0f0":ck?"#E8652D":"#fff",color:dn?"#bbb":ck?"#fff":"#555",border:dn?"1px solid #e5e5e5":ck?"1px solid #E8652D":"1px solid #ddd",opacity:dn?0.5:1,transition:"all 0.1s"}}>{q.num}{dn?" ·":""}
+                          </span>;
+                        })}
+                        <span onClick={()=>{const newIds=pgPs.filter(p=>!stuDn.has(p.id)).map(p=>p.id);const allCk=newIds.every(id=>aChk.has(id));const s=new Set(aChk);if(allCk)newIds.forEach(id=>s.delete(id));else newIds.forEach(id=>s.add(id));setAChk(s)}} style={{display:"inline-block",padding:"4px 8px",borderRadius:6,fontSize:10,fontWeight:700,cursor:"pointer",color:"#E8652D",border:"1px dashed #E8652D",background:"#fff"}}>ALL</span>
+                      </div>
+                    </td>
+                  </tr>;
+                })}</tbody>
+              </table>
             </div>;
           })()}
-          {aChk.size>0&&<Btn onClick={doAssign} disabled={saving} style={{width:"100%",marginTop:14,padding:"14px 0",fontSize:16}}>{saving?"저장 중...":"📋 "+aChk.size+"문제 출제"}</Btn>}
+          {aChk.size>0&&<button onClick={doAssign} disabled={saving} style={{width:"100%",marginTop:10,padding:"12px 0",borderRadius:10,border:"none",background:"#E8652D",color:"#fff",fontWeight:700,fontSize:14,cursor:"pointer",fontFamily:"inherit"}}>{saving?"저장 중...":"📋 "+aChk.size+"문제 출제"}</button>}
         </div>}
 
+        {/* ── 이력 ── */}
         {stuTab==="history"&&<div>
-          {stuAs.length===0&&<div style={{textAlign:"center",padding:50,color:"#d6d3d1"}}><div style={{fontSize:44}}>📭</div><div style={{fontSize:14,marginTop:8}}>아직 이력이 없어요</div></div>}
-          {stuAs.map((a,ai)=>{const prob=problems.find(p=>p.id===a.problem_id);if(!prob)return null;return(
-            <div key={a.id} className="fade-up" style={{display:"flex",alignItems:"center",gap:10,padding:"11px 12px",marginBottom:5,background:a.result==="wrong"?"#fef2f2":a.result==="correct"?"#ecfdf5":"#fff",border:"1.5px solid "+(a.result==="wrong"?"#fecaca":a.result==="correct"?"#bbf7d0":"#e7e5e4"),borderRadius:14,animationDelay:ai*0.03+"s"}}>
-              <div style={{flex:1}}><div style={{fontSize:13,fontWeight:600,color:"#44403c"}}>{pl(prob)}</div><div style={{fontSize:10,color:"#a8a29e",marginTop:2}}>{a.assigned_date}</div></div>
-              <div style={{display:"flex",gap:4}}>
-                {[["correct","✅"],["wrong","❌"]].map(([r,emoji])=>
-                  <button key={r} onClick={()=>setResult(a.id,a.result===r?"":r)} style={{width:38,height:38,borderRadius:11,border:a.result===r?"2.5px solid "+(r==="correct"?"#10b981":"#ef4444"):"1.5px solid #e7e5e4",background:a.result===r?(r==="correct"?"#ecfdf5":"#fef2f2"):"#fff",fontSize:17,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",transition:"all 0.15s"}}>{emoji}</button>
+          {stuAs.length===0&&<div style={{textAlign:"center",padding:40,color:"#bbb",fontSize:13}}>이력 없음</div>}
+          {stuAs.map(a=>{const prob=problems.find(p=>p.id===a.problem_id);if(!prob)return null;return(
+            <div key={a.id} style={{display:"flex",alignItems:"center",gap:8,padding:"8px 10px",marginBottom:3,background:a.result==="wrong"?"#fef2f2":a.result==="correct"?"#f0fdf4":"#fff",border:"1px solid "+(a.result==="wrong"?"#fecaca":a.result==="correct"?"#bbf7d0":"#eee"),borderRadius:8}}>
+              <div style={{flex:1,fontSize:12}}><span style={{fontWeight:600}}>{pl(prob)}</span><br/><span style={{fontSize:10,color:"#aaa"}}>{a.assigned_date}</span></div>
+              <div style={{display:"flex",gap:3}}>
+                {[["correct","✅"],["wrong","❌"]].map(([r,em])=>
+                  <button key={r} onClick={()=>setResult(a.id,a.result===r?"":r)} style={{width:32,height:32,borderRadius:8,border:a.result===r?"2px solid "+(r==="correct"?"#10b981":"#ef4444"):"1px solid #eee",background:a.result===r?(r==="correct"?"#f0fdf4":"#fef2f2"):"#fff",fontSize:15,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>{em}</button>
                 )}
               </div>
             </div>);
           })}
         </div>}
 
+        {/* ── 오답 ── */}
         {stuTab==="wrong"&&<div>
-          {stuWr.length===0&&<div style={{textAlign:"center",padding:50,color:"#d6d3d1"}}><div style={{fontSize:44}}>🎉</div><div style={{fontSize:14,marginTop:8}}>오답이 없어요! 대단해요!</div></div>}
-          {stuWr.map((a,ai)=>{const prob=problems.find(p=>p.id===a.problem_id);if(!prob)return null;return(
-            <div key={a.id} className="fade-up" style={{padding:"12px 14px",marginBottom:6,background:"#fef2f2",border:"1.5px solid #fecaca",borderRadius:14,animationDelay:ai*0.05+"s"}}>
-              <div style={{display:"flex",alignItems:"center",justifyContent:"space-between"}}><div style={{fontSize:13,fontWeight:700,color:"#44403c"}}>{pl(prob)}</div><span style={{fontSize:10,color:"#a8a29e"}}>{a.assigned_date}</span></div>
-              {prob.question_url&&<img src={prob.question_url} style={{width:"100%",borderRadius:10,marginTop:8,border:"1px solid #fecaca"}}/>}
+          {stuWr.length===0&&<div style={{textAlign:"center",padding:40,color:"#bbb",fontSize:13}}>오답 없음 👏</div>}
+          {stuWr.map(a=>{const prob=problems.find(p=>p.id===a.problem_id);if(!prob)return null;return(
+            <div key={a.id} style={{padding:"8px 10px",marginBottom:4,background:"#fef2f2",border:"1px solid #fecaca",borderRadius:8}}>
+              <div style={{fontSize:12,fontWeight:600}}>{pl(prob)} <span style={{color:"#aaa",fontWeight:400}}>{a.assigned_date}</span></div>
+              {prob.question_url&&<img src={prob.question_url} style={{width:"100%",borderRadius:6,marginTop:6}}/>}
             </div>);
           })}
-          {stuWr.length>0&&<Btn variant="danger" onClick={()=>{setTab("print");setPStu(selStu);setTimeout(loadWrong,100)}} style={{width:"100%",marginTop:12,padding:"14px 0",fontSize:15}}>🖨️ 오답 모아 인쇄</Btn>}
+          {stuWr.length>0&&<button onClick={()=>{setTab("print");setPStu(selStu);setTimeout(loadWrong,100)}} style={{width:"100%",marginTop:10,padding:"12px 0",borderRadius:10,border:"none",background:"#ef4444",color:"#fff",fontWeight:700,fontSize:14,cursor:"pointer",fontFamily:"inherit"}}>🖨️ 오답 인쇄</button>}
         </div>}
       </div>}
     </div>}
 
-    {/* ═══ 인쇄 탭 ═══ */}
-    {tab==="print"&&<div className="fade-up">
-      <div style={{fontSize:16,fontWeight:800,color:"#292524",marginBottom:12}}>🖨️ 인쇄하기</div>
-      <div style={{display:"flex",flexDirection:"column",gap:8,marginBottom:10}}>
-        <Select value={pStu} onChange={e=>setPStu(e.target.value)}><option value="">👤 학생 선택 (선택사항)</option>{students.map(s=><option key={s.id} value={s.id}>{s.name}</option>)}</Select>
-        <Select value={pBook} onChange={e=>{setPBook(e.target.value);setPChk(new Set());setPExpPage("");setPRes([]);setPrintPv(null)}}><option value="">📚 교재 선택</option>{books.map(b=><option key={b.id} value={b.id}>{b.name}</option>)}</Select>
-        {pStu&&<Btn variant="danger" onClick={loadWrong} style={{width:"100%",padding:"12px 0"}}>❌ 오답 모아보기</Btn>}
+    {/* ═══════════ 인쇄 탭 ═══════════ */}
+    {tab==="print"&&<div>
+      <div style={{display:"flex",gap:6,marginBottom:8}}>
+        <Select value={pStu} onChange={e=>setPStu(e.target.value)} style={{flex:1,padding:"9px 12px",fontSize:13}}><option value="">학생 선택</option>{students.map(s=><option key={s.id} value={s.id}>{s.name}</option>)}</Select>
+        <Select value={pBook} onChange={e=>{setPBook(e.target.value);setPChk(new Set());setPExpPage("");setPRes([]);setPrintPv(null)}} style={{flex:1,padding:"9px 12px",fontSize:13}}><option value="">교재 선택</option>{books.map(b=><option key={b.id} value={b.id}>{b.name}</option>)}</Select>
       </div>
+      {pStu&&<button onClick={loadWrong} style={{width:"100%",marginBottom:10,padding:"10px 0",borderRadius:8,border:"none",background:"#ef4444",color:"#fff",fontWeight:700,fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>❌ 오답 모아보기</button>}
 
+      {/* 교재 선택시 테이블 */}
       {pBook&&!pRes.length&&(()=>{
         const bkPs=problems.filter(p=>p.book_id===pBook);
         const pgs=[...new Set(bkPs.map(p=>p.page_num))].sort((a,b)=>(parseInt(a)||0)-(parseInt(b)||0));
-        if(!pgs.length)return<div style={{textAlign:"center",padding:40,color:"#d6d3d1"}}><div style={{fontSize:36}}>📭</div><div style={{fontSize:13,marginTop:8}}>등록된 문제가 없어요</div></div>;
-        return<div style={{display:"flex",flexDirection:"column",gap:6}}>
-          {pgs.map(pg=>{
-            const pgPs=bkPs.filter(p=>p.page_num===pg).sort((a,b)=>(parseFloat(a.num)||0)-(parseFloat(b.num)||0));
-            const open=pExpPage===pg;
-            const chkCnt=pgPs.filter(p=>pChk.has(p.id)).length;
-            return<div key={pg}>
-              <div onClick={()=>setPExpPage(open?"":pg)} style={{display:"flex",alignItems:"center",gap:10,padding:"10px 14px",background:open?"#fff5f0":"#fff",border:open?"1.5px solid #E8652D":"1.5px solid #e7e5e4",borderRadius:12,cursor:"pointer",transition:"all 0.15s"}}>
-                <span style={{fontSize:14,fontWeight:700,color:open?"#E8652D":"#44403c"}}>{open?"▼":"▶"} {pg}쪽</span>
-                <span style={{fontSize:11,color:"#a8a29e"}}>{pgPs.length}문제</span>
-                {chkCnt>0&&<span style={{fontSize:10,color:"#fff",background:"#E8652D",padding:"2px 8px",borderRadius:10,fontWeight:700,marginLeft:"auto"}}>{chkCnt}</span>}
-              </div>
-              {open&&<div style={{display:"flex",flexWrap:"wrap",gap:6,padding:"10px 8px",background:"#fafaf9",borderRadius:"0 0 12px 12px",border:"1px solid #e7e5e4",borderTop:"none"}}>
-                {pgPs.map(q=>{
-                  const ck=pChk.has(q.id);
-                  return<div key={q.id} onClick={()=>{const s=new Set(pChk);ck?s.delete(q.id):s.add(q.id);setPChk(s)}} style={{padding:"8px 14px",borderRadius:10,border:ck?"2px solid #E8652D":"1.5px solid #e7e5e4",background:ck?"#fff5f0":"#fff",cursor:"pointer",transition:"all 0.15s",minWidth:50,textAlign:"center"}}>
-                    <div style={{fontSize:14,fontWeight:700,color:ck?"#E8652D":"#44403c"}}>{q.num}번</div>
-                  </div>;
-                })}
-                <div onClick={()=>{const ids=pgPs.map(p=>p.id);const allCk=ids.every(id=>pChk.has(id));const s=new Set(pChk);if(allCk)ids.forEach(id=>s.delete(id));else ids.forEach(id=>s.add(id));setPChk(s)}} style={{padding:"8px 12px",borderRadius:10,border:"1.5px dashed #E8652D",background:"#fff",cursor:"pointer",minWidth:50,textAlign:"center"}}>
-                  <div style={{fontSize:11,fontWeight:700,color:"#E8652D"}}>전체</div>
-                </div>
-              </div>}
-            </div>;
-          })}
+        if(!pgs.length)return<div style={{textAlign:"center",padding:30,color:"#bbb",fontSize:13}}>등록된 문제 없음</div>;
+        return<div style={{background:"#fff",borderRadius:10,border:"1px solid #eee",overflow:"hidden"}}>
+          <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
+            <thead><tr style={{background:"#fafafa"}}><th style={{padding:"6px 10px",textAlign:"left",fontWeight:600,color:"#888",borderBottom:"1px solid #eee"}}>쪽</th><th style={{padding:"6px 10px",textAlign:"left",fontWeight:600,color:"#888",borderBottom:"1px solid #eee"}}>문제번호 (터치로 선택)</th></tr></thead>
+            <tbody>{pgs.map(pg=>{
+              const pgPs=bkPs.filter(p=>p.page_num===pg).sort((a,b)=>(parseFloat(a.num)||0)-(parseFloat(b.num)||0));
+              return<tr key={pg} style={{borderBottom:"1px solid #f5f5f5"}}>
+                <td style={{padding:"8px 10px",fontWeight:700,color:"#E8652D",verticalAlign:"top",whiteSpace:"nowrap",width:40}}>{pg}</td>
+                <td style={{padding:"6px 8px"}}>
+                  <div style={{display:"flex",flexWrap:"wrap",gap:4}}>
+                    {pgPs.map(q=>{
+                      const ck=pChk.has(q.id);
+                      return<span key={q.id} onClick={()=>{const s=new Set(pChk);ck?s.delete(q.id):s.add(q.id);setPChk(s)}} style={{display:"inline-block",padding:"4px 10px",borderRadius:6,fontSize:12,fontWeight:600,cursor:"pointer",background:ck?"#E8652D":"#fff",color:ck?"#fff":"#555",border:ck?"1px solid #E8652D":"1px solid #ddd",transition:"all 0.1s"}}>{q.num}</span>;
+                    })}
+                    <span onClick={()=>{const ids=pgPs.map(p=>p.id);const allCk=ids.every(id=>pChk.has(id));const s=new Set(pChk);if(allCk)ids.forEach(id=>s.delete(id));else ids.forEach(id=>s.add(id));setPChk(s)}} style={{display:"inline-block",padding:"4px 8px",borderRadius:6,fontSize:10,fontWeight:700,cursor:"pointer",color:"#E8652D",border:"1px dashed #E8652D",background:"#fff"}}>ALL</span>
+                  </div>
+                </td>
+              </tr>;
+            })}</tbody>
+          </table>
         </div>;
       })()}
 
-      {pRes.length>0&&<div className="fade-up">
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
-          <span style={{fontSize:15,fontWeight:800,color:"#44403c"}}>{pRes.length}문제 (오답)</span>
-          <Btn variant="ghost" onClick={()=>{pChk.size===pRes.length?setPChk(new Set()):setPChk(new Set(pRes.map(p=>p.id)))}}>{pChk.size===pRes.length?"전체해제":"전체선택"}</Btn>
+      {/* 오답 목록 */}
+      {pRes.length>0&&<div>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
+          <span style={{fontSize:13,fontWeight:700,color:"#555"}}>{pRes.length}문제 (오답)</span>
+          <button onClick={()=>{pChk.size===pRes.length?setPChk(new Set()):setPChk(new Set(pRes.map(p=>p.id)))}} style={{fontSize:11,color:"#888",background:"none",border:"none",cursor:"pointer",fontFamily:"inherit"}}>{pChk.size===pRes.length?"전체해제":"전체선택"}</button>
         </div>
-        {pRes.map(q=>(<div key={q.id} onClick={()=>{const s=new Set(pChk);s.has(q.id)?s.delete(q.id):s.add(q.id);setPChk(s)}} style={{display:"flex",alignItems:"center",gap:10,padding:"10px 12px",marginBottom:5,background:pChk.has(q.id)?"#fff5f0":"#fff",border:"1.5px solid "+(pChk.has(q.id)?"#E8652D":"#e7e5e4"),borderRadius:12,cursor:"pointer",transition:"all 0.15s"}}>
-          <div style={{width:22,height:22,borderRadius:7,border:pChk.has(q.id)?"2px solid #E8652D":"2px solid #d6d3d1",background:pChk.has(q.id)?"#E8652D":"#fff",display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,color:"#fff",fontWeight:800,transition:"all 0.15s"}}>{pChk.has(q.id)&&"✓"}</div>
-          <span style={{fontSize:13,flex:1,fontWeight:500}}>{pl(q)}</span>
+        {pRes.map(q=>(<div key={q.id} onClick={()=>{const s=new Set(pChk);s.has(q.id)?s.delete(q.id):s.add(q.id);setPChk(s)}} style={{display:"flex",alignItems:"center",gap:8,padding:"7px 10px",marginBottom:3,background:pChk.has(q.id)?"#fff8f5":"#fff",border:"1px solid "+(pChk.has(q.id)?"#E8652D":"#eee"),borderRadius:8,cursor:"pointer"}}>
+          <div style={{width:18,height:18,borderRadius:5,border:pChk.has(q.id)?"2px solid #E8652D":"1.5px solid #ccc",background:pChk.has(q.id)?"#E8652D":"#fff",display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,color:"#fff",fontWeight:800,flexShrink:0}}>{pChk.has(q.id)&&"✓"}</div>
+          <span style={{fontSize:12,fontWeight:500}}>{pl(q)}</span>
         </div>))}
       </div>}
 
-      {pChk.size>0&&<div style={{marginTop:14}}>
-        <div style={{padding:"14px 16px",background:"#fafaf9",borderRadius:16,border:"1.5px solid #e7e5e4",marginBottom:12}}>
-          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
-            <span style={{fontSize:14,fontWeight:700,color:"#44403c"}}>✏️ 풀이란</span>
-            <span style={{fontSize:20,fontWeight:800,color:"#E8652D"}}>{pLines}줄</span>
-          </div>
-          <input type="range" min="0" max="12" value={pLines} onChange={e=>setPLines(parseInt(e.target.value))} style={{width:"100%"}}/>
-          <div style={{display:"flex",justifyContent:"space-between",fontSize:10,color:"#a8a29e",marginTop:4}}><span>없음</span><span>넉넉하게</span></div>
+      {/* 인쇄 옵션 */}
+      {pChk.size>0&&<div style={{marginTop:12,background:"#fff",borderRadius:10,border:"1px solid #eee",padding:12}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+          <span style={{fontSize:13,fontWeight:700,color:"#555"}}>풀이란 {pLines}줄</span>
+          <span style={{fontSize:12,fontWeight:700,color:"#E8652D"}}>{pChk.size}문제</span>
         </div>
-        <div style={{fontSize:13,fontWeight:700,color:"#E8652D",marginBottom:8,textAlign:"center"}}>{pChk.size}문제 선택됨</div>
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8}}>
-          <Btn variant="green" onClick={()=>setPrintPv("question")} style={{padding:"14px 0",fontSize:14}}>📗 문제</Btn>
-          <Btn variant="amber" onClick={()=>setPrintPv("solution")} style={{padding:"14px 0",fontSize:14}}>📙 해설</Btn>
-          <Btn onClick={()=>setPrintPv("both")} style={{padding:"14px 0",fontSize:14}}>📗+📙</Btn>
+        <input type="range" min="0" max="12" value={pLines} onChange={e=>setPLines(parseInt(e.target.value))} style={{width:"100%",accentColor:"#E8652D"}}/>
+        <div style={{display:"flex",gap:6,marginTop:10}}>
+          <button onClick={()=>setPrintPv("question")} style={{flex:1,padding:"11px 0",borderRadius:8,border:"none",background:"#059669",color:"#fff",fontWeight:700,fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>📗 문제</button>
+          <button onClick={()=>setPrintPv("solution")} style={{flex:1,padding:"11px 0",borderRadius:8,border:"none",background:"#d97706",color:"#fff",fontWeight:700,fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>📙 해설</button>
+          <button onClick={()=>setPrintPv("both")} style={{flex:1,padding:"11px 0",borderRadius:8,border:"none",background:"#E8652D",color:"#fff",fontWeight:700,fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>📗+📙</button>
         </div>
       </div>}
 
-      {!pBook&&!pRes.length&&<div style={{textAlign:"center",padding:60,color:"#d6d3d1"}}>
-        <div style={{fontSize:52,marginBottom:12}}>🖨️</div>
-        <div style={{fontSize:14,fontWeight:500}}>교재를 선택하거나 오답 버튼을 눌러주세요</div>
+      {!pBook&&!pRes.length&&<div style={{textAlign:"center",padding:50,color:"#ccc"}}>
+        <div style={{fontSize:40,marginBottom:8}}>🖨️</div>
+        <div style={{fontSize:13}}>교재를 선택하거나 오답을 불러오세요</div>
       </div>}
     </div>}
     </div>
