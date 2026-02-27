@@ -114,11 +114,11 @@ function Main({sb}){
   const curBk=books.find(b=>b.id===selBook);
   const is2=curBk?.cols===2;
 
-  useEffect(()=>{(async()=>{try{const[b,p,s,a]=await Promise.all([sb.from("books").select("*").order("created_at"),sb.from("problems").select("id,book_id,page_num,num,question_url,solution_url").order("created_at"),sb.from("students").select("*").order("name"),sb.from("assignments").select("*").order("created_at",{ascending:false})]);if(b.data)setBooks(b.data);if(p.data)setProblems(p.data);if(s.data)setStudents(s.data);if(a.data)setAssignments(a.data)}catch(e){console.error(e)}setLoaded(true)})()},[sb]);
+  useEffect(()=>{(async()=>{try{const[b,p,s,a]=await Promise.all([sb.from("books").select("*").order("created_at"),sb.from("problems").select("id,book_id,page_num,num,question_url,solution_url").order("created_at"),sb.from("students").select("*").order("name"),sb.from("assignments").select("*").order("created_at",{ascending:false})]);if(b.error)setErrMsg("교재로드실패: "+b.error.message);if(p.error)setErrMsg("문제로드실패: "+p.error.message);if(b.data)setBooks(b.data);if(p.data)setProblems(p.data.map(x=>({...x,page_num:String(x.page_num||""),num:String(x.num||"")})));if(s.data)setStudents(s.data);if(a.data)setAssignments(a.data)}catch(e){console.error(e);setErrMsg("로드 오류: "+e.message)}setLoaded(true)})()},[sb]);
 
   const bn=id=>books.find(b=>b.id===id)?.name||"";
   const pl=p=>bn(p.book_id)+" "+p.page_num+"쪽 "+p.num+"번";
-  const pgProbs=problems.filter(p=>p.book_id===selBook&&p.page_num===pgNum);
+  const pgProbs=problems.filter(p=>p.book_id===selBook&&String(p.page_num)===String(pgNum));
   const workImg=is2?sideImg:pgImg;
 
   const addBk=async()=>{const n=bnRef.current?.value?.trim();if(!n)return;const id=uid();const bk={id,name:n,cols:newBC};setBooks(p=>[...p,bk]);setSelBook(id);setNewBC(1);setBnKey(k=>k+1);await sb.from("books").insert(bk)};
@@ -144,7 +144,7 @@ function Main({sb}){
 
   const genPv=async()=>{if(!workImg||!markers.length)return;const img=new Image();img.src=workImg;await new Promise(r=>{img.onload=r});const sl=[];const so=[...markers].sort((a,b)=>a.y-b.y);for(let i=0;i<so.length;i++){const ys=so[i].y,ye=i<so.length-1?so[i+1].y:1;const cv=document.createElement("canvas");const sy=Math.round(ys*img.height),sh=Math.round((ye-ys)*img.height);if(sh<5)continue;cv.width=img.width;cv.height=sh;cv.getContext("2d").drawImage(img,0,sy,img.width,sh,0,0,img.width,sh);sl.push({num:so[i].num,dataUrl:cv.toDataURL("image/jpeg",0.75)});cv.width=0;cv.height=0}setPvSlices(sl);setShowPv(true)};
 
-  const saveSl=async()=>{if(!pvSlices.length)return;setSaving(true);const isQ=pdfLbl==="question";let up=[...problems];for(const sl of pvSlices){const ex=up.find(p=>p.book_id===selBook&&p.page_num===pgNum&&p.num===sl.num);const blob=await(await fetch(sl.dataUrl)).blob();const path=selBook+"/"+pgNum+"_"+sl.num+"_"+(isQ?"q":"s")+"_"+uid()+".jpg";const{error:ue}=await sb.storage.from("qbank-images").upload(path,blob,{contentType:"image/jpeg",upsert:true});if(ue){console.error("Upload:",ue);continue}const{data:ud}=sb.storage.from("qbank-images").getPublicUrl(path);const pu=ud?.publicUrl||"";if(ex){const upd=isQ?{question_url:pu}:{solution_url:pu};await sb.from("problems").update(upd).eq("id",ex.id);if(isQ)ex.question_url=pu;else ex.solution_url=pu}else{const id=uid();const row={id,book_id:selBook,page_num:pgNum,num:sl.num,question_url:isQ?pu:"",solution_url:isQ?"":pu};await sb.from("problems").insert(row);up.push(row)}}setProblems(up);setMarkers([]);setShowPv(false);setPvSlices([]);if(is2&&side==="left")extSide("right");setSaving(false)};
+  const saveSl=async()=>{if(!pvSlices.length)return;setSaving(true);const isQ=pdfLbl==="question";let up=[...problems];for(const sl of pvSlices){const ex=up.find(p=>p.book_id===selBook&&String(p.page_num)===String(pgNum)&&String(p.num)===String(sl.num));const blob=await(await fetch(sl.dataUrl)).blob();const path=selBook+"/"+pgNum+"_"+sl.num+"_"+(isQ?"q":"s")+"_"+uid()+".jpg";const{error:ue}=await sb.storage.from("qbank-images").upload(path,blob,{contentType:"image/jpeg",upsert:true});if(ue){console.error("Upload:",ue);setErrMsg("업로드 오류: "+ue.message);continue}const{data:ud}=sb.storage.from("qbank-images").getPublicUrl(path);const pu=ud?.publicUrl||"";if(ex){const upd=isQ?{question_url:pu}:{solution_url:pu};await sb.from("problems").update(upd).eq("id",ex.id);if(isQ)ex.question_url=pu;else ex.solution_url=pu}else{const id=uid();const row={id,book_id:selBook,page_num:String(pgNum),num:String(sl.num),question_url:isQ?pu:"",solution_url:isQ?"":pu};await sb.from("problems").insert(row);up.push(row)}}setProblems(up);setMarkers([]);setShowPv(false);setPvSlices([]);if(is2&&side==="left")extSide("right");setSaving(false)};
 
   const delProb=async id=>{setProblems(p=>p.filter(x=>x.id!==id));await sb.from("problems").delete().eq("id",id)};
   const addStu=async()=>{const n=snRef.current?.value?.trim();if(!n)return;const id=uid();const s={id,name:n,memo:""};setStudents(p=>[...p,s].sort((a,b)=>a.name.localeCompare(b.name)));setSnKey(k=>k+1);await sb.from("students").insert(s)};
@@ -293,7 +293,10 @@ function Main({sb}){
       <div style={{display:"flex",alignItems:"center",gap:12,position:"relative"}}>
         <div style={{background:"rgba(255,255,255,0.15)",borderRadius:14,padding:6,backdropFilter:"blur(8px)"}}><img src={LOGO} style={{width:40,height:40,borderRadius:10}}/></div>
         <div style={{flex:1}}><div style={{fontSize:10,opacity:0.7,fontWeight:600,letterSpacing:1.5,textTransform:"uppercase"}}>The Monster Academy</div><div style={{fontSize:22,fontWeight:900,letterSpacing:-0.5,marginTop:1}}>문제은행</div></div>
+        <div style={{display:"flex",gap:6}}>
+        <button onClick={()=>{setLoaded(false);(async()=>{try{const[b,p,s,a]=await Promise.all([sb.from("books").select("*").order("created_at"),sb.from("problems").select("id,book_id,page_num,num,question_url,solution_url").order("created_at"),sb.from("students").select("*").order("name"),sb.from("assignments").select("*").order("created_at",{ascending:false})]);if(b.data)setBooks(b.data);if(p.data)setProblems(p.data.map(x=>({...x,page_num:String(x.page_num||""),num:String(x.num||"")})));if(s.data)setStudents(s.data);if(a.data)setAssignments(a.data)}catch(e){setErrMsg("새로고침 실패: "+e.message)}setLoaded(true)})()}} style={{background:"rgba(255,255,255,0.15)",border:"none",color:"#fff",padding:"6px 10px",borderRadius:10,fontSize:14,cursor:"pointer",backdropFilter:"blur(4px)"}}>🔄</button>
         <button onClick={()=>{if(confirm("설정 초기화?")){localStorage.removeItem("sq-cfg");location.reload()}}} style={{background:"rgba(255,255,255,0.15)",border:"none",color:"#fff",padding:"6px 14px",borderRadius:10,fontSize:12,cursor:"pointer",fontWeight:600,backdropFilter:"blur(4px)"}}>⚙️</button>
+        </div>
       </div>
     </div>
 
@@ -333,6 +336,39 @@ function Main({sb}){
       ))}
 
       {selBook&&<div className="fade-up" style={{marginTop:14}}>
+        {/* 등록 현황 */}
+        {(()=>{
+          const bkPs=problems.filter(p=>p.book_id===selBook);
+          if(!bkPs.length)return<div style={{textAlign:"center",padding:24,color:"#d6d3d1",background:"#fff",borderRadius:16,border:"1.5px solid #e7e5e4",marginBottom:14}}><div style={{fontSize:30}}>📭</div><div style={{fontSize:13,marginTop:6}}>아직 등록된 문제가 없어요</div><div style={{fontSize:11,marginTop:4,color:"#a8a29e"}}>아래에서 PDF를 업로드하여 문제를 등록해주세요</div></div>;
+          const pgs=[...new Set(bkPs.map(p=>p.page_num))].sort((a,b)=>(parseInt(a)||0)-(parseInt(b)||0));
+          const qCnt=bkPs.filter(p=>p.question_url).length;
+          const sCnt=bkPs.filter(p=>p.solution_url).length;
+          return<div style={{marginBottom:14}}>
+            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:8}}>
+              <span style={{fontSize:14,fontWeight:700,color:"#44403c"}}>📋 등록 현황</span>
+              <div style={{display:"flex",gap:6,fontSize:11}}>
+                <span style={{padding:"3px 8px",borderRadius:6,background:"#ecfdf5",color:"#059669",fontWeight:700}}>📗 {qCnt}</span>
+                <span style={{padding:"3px 8px",borderRadius:6,background:"#fffbeb",color:"#d97706",fontWeight:700}}>📙 {sCnt}</span>
+                <span style={{padding:"3px 8px",borderRadius:6,background:"#fff5f0",color:"#E8652D",fontWeight:700}}>총 {bkPs.length}문제</span>
+              </div>
+            </div>
+            <div style={{background:"#fff",borderRadius:14,border:"1.5px solid #e7e5e4",overflow:"hidden"}}>
+              {pgs.map((pg,pi)=>{
+                const pgPs=bkPs.filter(p=>p.page_num===pg).sort((a,b)=>(parseFloat(a.num)||0)-(parseFloat(b.num)||0));
+                return<div key={pg} style={{padding:"8px 12px",borderBottom:pi<pgs.length-1?"1px solid #f5f5f4":"none"}}>
+                  <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
+                    <span style={{fontSize:13,fontWeight:700,color:"#E8652D",minWidth:42}}>{pg}쪽</span>
+                    {pgPs.map(p=><span key={p.id} style={{padding:"3px 10px",borderRadius:8,fontSize:12,fontWeight:600,background:p.question_url&&p.solution_url?"#ecfdf5":p.question_url?"#fff5f0":"#fffbeb",color:p.question_url&&p.solution_url?"#059669":p.question_url?"#E8652D":"#d97706",border:"1px solid "+(p.question_url&&p.solution_url?"#bbf7d0":p.question_url?"#fed7aa":"#fde68a")}}>{p.num}번{!p.question_url&&!p.solution_url?" ⚠":""}{ p.question_url&&p.solution_url?" ✅":p.question_url?" 📗":" 📙"}</span>)}
+                  </div>
+                </div>;
+              })}
+            </div>
+            <div style={{display:"flex",gap:6,marginTop:6,fontSize:10,color:"#a8a29e",justifyContent:"center"}}>
+              <span>✅ = 문제+해설</span><span>📗 = 문제만</span><span>📙 = 해설만</span>
+            </div>
+          </div>;
+        })()}
+
         {!pdfBuf?<div style={{display:"flex",gap:10}}>
           <label style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",padding:"22px 12px",borderRadius:16,cursor:"pointer",border:"2px dashed #10b981",background:"#ecfdf5",gap:6,transition:"all 0.2s"}}><span style={{fontSize:30}}>📗</span><span style={{fontSize:13,fontWeight:700,color:"#10b981"}}>문제집 PDF</span><input type="file" accept="application/pdf" onChange={e=>loadPdf(e,"question")} hidden/></label>
           <label style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",padding:"22px 12px",borderRadius:16,cursor:"pointer",border:"2px dashed #f59e0b",background:"#fffbeb",gap:6,transition:"all 0.2s"}}><span style={{fontSize:30}}>📙</span><span style={{fontSize:13,fontWeight:700,color:"#f59e0b"}}>해설지 PDF</span><input type="file" accept="application/pdf" onChange={e=>loadPdf(e,"solution")} hidden/></label>
