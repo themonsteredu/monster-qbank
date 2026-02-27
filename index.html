@@ -179,27 +179,40 @@ function Main({sb}){
 
   const searchAssign=()=>{let r=[...problems];if(aBook)r=r.filter(p=>p.book_id===aBook);if(aPage.trim()){const pp=aPage.split(",").map(s=>s.trim()).filter(Boolean);r=r.filter(p=>pp.includes(p.page_num))}if(aNums.trim()){const nn=aNums.split(",").map(s=>s.trim()).filter(Boolean);r=r.filter(p=>nn.includes(p.num))}r.sort((a,b)=>(parseInt(a.page_num)||0)-(parseInt(b.page_num)||0)||(parseFloat(a.num)||0)-(parseFloat(b.num)||0));setARes(r);setAChk(new Set(r.filter(p=>!stuDn.has(p.id)).map(p=>p.id)))};
 
-  // 출제 저장 + 즉시 인쇄 (미리보기 없이 바로)
-  const doAssignPrint=async(mode)=>{
+  // 출제만 (저장)
+  const doAssign=async()=>{
+    const ids=[...aChk].filter(id=>!stuDn.has(id));
+    if(!ids.length){alert("새로 출제할 문제가 없어요");return}
+    setSaving(true);const dt=today();const nw=[];
+    for(const pid of ids){const a={id:uid(),student_id:selStu,problem_id:pid,assigned_date:dt,result:"",note:""};nw.push(a);await sb.from("assignments").insert(a)}
+    setAssignments(p=>[...nw,...p]);setSaving(false);
+    alert(ids.length+"문제 출제 완료!");
+  };
+  // 선택된 문제 출력 (출제 안 된 건 자동 출제 후 인쇄)
+  const doPrintSelected=async(mode)=>{
     const allIds=[...aChk];
     if(!allIds.length){alert("문제를 선택하세요");return}
-    // 새 문제만 출제 저장
     const newIds=allIds.filter(id=>!stuDn.has(id));
     if(newIds.length){
       setSaving(true);const dt=today();const nw=[];
       for(const pid of newIds){const a={id:uid(),student_id:selStu,problem_id:pid,assigned_date:dt,result:"",note:""};nw.push(a);await sb.from("assignments").insert(a)}
       setAssignments(p=>[...nw,...p]);setSaving(false);
     }
-    // 즉시 인쇄
     const selPs=problems.filter(p=>allIds.includes(p.id)).sort((a,b)=>(parseInt(a.page_num)||0)-(parseInt(b.page_num)||0)||(parseFloat(a.num)||0)-(parseFloat(b.num)||0));
     const sn=students.find(s=>s.id===selStu)?.name||"";
-    directPrint(selPs,sn,mode);
-    setAChk(new Set());
+    directPrint(selPs,sn,mode);setAChk(new Set());
   };
-  // 오답만 즉시 인쇄
+  // 이미 출제된 문제 재출력
+  const reprintAssigned=(mode)=>{
+    const selPs=stuAs.map(a=>problems.find(p=>p.id===a.problem_id)).filter(Boolean);
+    selPs.sort((a,b)=>(parseInt(a.page_num)||0)-(parseInt(b.page_num)||0)||(parseFloat(a.num)||0)-(parseFloat(b.num)||0));
+    if(!selPs.length){alert("출제된 문제가 없어요");return}
+    const sn=students.find(s=>s.id===selStu)?.name||"";
+    directPrint(selPs,sn,mode);
+  };
+  // 오답만 출력
   const printWrong=(mode)=>{
-    const wa=assignments.filter(a=>a.student_id===selStu&&a.result==="wrong");
-    const pids=[...new Set(wa.map(a=>a.problem_id))];
+    const pids=[...new Set(stuWr.map(a=>a.problem_id))];
     const r=problems.filter(p=>pids.includes(p.id));
     r.sort((a,b)=>(parseInt(a.page_num)||0)-(parseInt(b.page_num)||0)||(parseFloat(a.num)||0)-(parseFloat(b.num)||0));
     if(!r.length){alert("오답이 없어요!");return}
@@ -437,9 +450,9 @@ function Main({sb}){
       {/* ═══ 학생 선택 후: 단일 흐름 ═══ */}
       {selStu&&<div style={{marginTop:12}}>
 
-        {/* ── STEP 1: 문제 선택 + 즉시 출력 ── */}
+        {/* ── STEP 1: 문제 선택 ── */}
         <div style={{background:"#fff",borderRadius:10,border:"1px solid #eee",padding:12,marginBottom:12}}>
-          <div style={{fontSize:13,fontWeight:700,color:"#333",marginBottom:8}}>📝 문제 선택 → 출력</div>
+          <div style={{fontSize:13,fontWeight:700,color:"#333",marginBottom:8}}>📝 문제 선택</div>
           <Select value={aBook} onChange={e=>{setABook(e.target.value);setAChk(new Set())}} style={{marginBottom:8,padding:"9px 12px",fontSize:13}}><option value="">교재 선택</option>{books.map(b=><option key={b.id} value={b.id}>{b.name}</option>)}</Select>
           {aBook&&(()=>{
             const bkPs=problems.filter(p=>p.book_id===aBook&&p.question_url);
@@ -466,31 +479,50 @@ function Main({sb}){
               </table>
             </div>;
           })()}
-          {aChk.size>0&&<div style={{marginTop:8}}>
-            <div style={{fontSize:11,color:"#888",marginBottom:6,padding:"0 2px"}}>
+
+          {/* 선택한 문제 미리보기 */}
+          {aChk.size>0&&<div style={{marginTop:10}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
+              <span style={{fontSize:12,fontWeight:700,color:"#E8652D"}}>{aChk.size}문제 선택</span>
+              <button onClick={()=>setAChk(new Set())} style={{fontSize:10,color:"#888",background:"none",border:"none",cursor:"pointer",fontFamily:"inherit"}}>전체해제</button>
+            </div>
+            <div style={{fontSize:11,color:"#888",marginBottom:6}}>
               {(()=>{
                 const selPs=problems.filter(p=>aChk.has(p.id)).sort((a,b)=>(parseInt(a.page_num)||0)-(parseInt(b.page_num)||0)||(parseFloat(a.num)||0)-(parseFloat(b.num)||0));
                 const grouped={};selPs.forEach(p=>{if(!grouped[p.page_num])grouped[p.page_num]=[];grouped[p.page_num].push(p)});
                 return Object.entries(grouped).map(([pg,ps])=><span key={pg}><b>{pg}p</b> {ps.map(p=>p.num).join(",")}번 </span>);
               })()}
             </div>
+            {/* 이미지 미리보기 (접기/펴기) */}
+            <button onClick={()=>setAExpPage(aExpPage==="preview"?"":"preview")} style={{width:"100%",padding:"6px 0",borderRadius:6,border:"1px solid #ddd",background:aExpPage==="preview"?"#f5f5f5":"#fff",fontSize:11,fontWeight:600,cursor:"pointer",fontFamily:"inherit",color:"#888",marginBottom:6}}>{aExpPage==="preview"?"▼ 미리보기 닫기":"▶ 문제 이미지 미리보기"}</button>
+            {aExpPage==="preview"&&<div style={{maxHeight:400,overflowY:"auto",border:"1px solid #eee",borderRadius:8,padding:6,marginBottom:6,background:"#fafafa"}}>
+              {problems.filter(p=>aChk.has(p.id)).sort((a,b)=>(parseInt(a.page_num)||0)-(parseInt(b.page_num)||0)||(parseFloat(a.num)||0)-(parseFloat(b.num)||0)).map(q=>
+                <div key={q.id} style={{marginBottom:8}}>
+                  <div style={{fontSize:11,fontWeight:700,color:"#E8652D",marginBottom:3}}>{q.page_num}p {q.num}번</div>
+                  {q.question_url?<img src={q.question_url} style={{width:"100%",borderRadius:6,border:"1px solid #eee"}}/>:<div style={{padding:12,background:"#fff",border:"1px dashed #ddd",borderRadius:6,textAlign:"center",color:"#ccc",fontSize:11}}>이미지 없음</div>}
+                </div>
+              )}
+            </div>}
+            {/* 출제 / 출력 버튼 */}
             <div style={{display:"flex",gap:4,marginBottom:4}}>
               <span style={{fontSize:11,color:"#888",lineHeight:"32px"}}>풀이란 {pLines}줄</span>
               <input type="range" min="0" max="12" value={pLines} onChange={e=>setPLines(parseInt(e.target.value))} style={{flex:1,accentColor:"#E8652D"}}/>
             </div>
-            <div style={{display:"flex",gap:4}}>
-              <button onClick={()=>doAssignPrint("question")} disabled={saving} style={{flex:1,padding:"10px 0",borderRadius:8,border:"none",background:"#059669",color:"#fff",fontWeight:700,fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>📗 문제 출력</button>
-              <button onClick={()=>doAssignPrint("both")} disabled={saving} style={{flex:1,padding:"10px 0",borderRadius:8,border:"none",background:"#E8652D",color:"#fff",fontWeight:700,fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>📗+📙 출력</button>
+            <div style={{display:"flex",gap:4,marginBottom:4}}>
+              <button onClick={doAssign} disabled={saving} style={{flex:1,padding:"10px 0",borderRadius:8,border:"2px solid #E8652D",background:"#fff",color:"#E8652D",fontWeight:700,fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>📋 출제만</button>
+              <button onClick={()=>doPrintSelected("question")} disabled={saving} style={{flex:1,padding:"10px 0",borderRadius:8,border:"none",background:"#059669",color:"#fff",fontWeight:700,fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>📗 출력</button>
+              <button onClick={()=>doPrintSelected("both")} disabled={saving} style={{flex:1,padding:"10px 0",borderRadius:8,border:"none",background:"#E8652D",color:"#fff",fontWeight:700,fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>📗+📙</button>
             </div>
           </div>}
         </div>
 
-        {/* ── STEP 2: 채점 ── */}
+        {/* ── STEP 2: 채점 + 재출력 ── */}
         {stuAs.length>0&&<div style={{background:"#fff",borderRadius:10,border:"1px solid #eee",padding:12,marginBottom:12}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
             <div style={{fontSize:13,fontWeight:700,color:"#333"}}>✏️ 채점 <span style={{fontWeight:400,color:"#aaa",fontSize:11}}>({stuAs.length}문제)</span></div>
-            <div style={{display:"flex",gap:4}}>
+            <div style={{display:"flex",gap:3}}>
               <button onClick={()=>setAExpPage(aExpPage==="wrongOnly"?"":"wrongOnly")} style={{padding:"3px 8px",borderRadius:5,border:aExpPage==="wrongOnly"?"1.5px solid #ef4444":"1px solid #ddd",background:aExpPage==="wrongOnly"?"#fef2f2":"#fff",color:aExpPage==="wrongOnly"?"#ef4444":"#888",fontSize:10,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>{aExpPage==="wrongOnly"?"전체":"오답만"}</button>
+              <button onClick={()=>reprintAssigned("question")} style={{padding:"3px 8px",borderRadius:5,border:"1px solid #ddd",background:"#fff",color:"#888",fontSize:10,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>🖨️ 재출력</button>
             </div>
           </div>
           <div style={{fontSize:11,color:"#aaa",marginBottom:8}}><span style={{color:"#10b981",fontWeight:600}}>✓{stuAs.filter(a=>a.result==="correct").length}</span> · <span style={{color:"#ef4444",fontWeight:600}}>✗{stuWr.length}</span> · 미채점 {stuAs.filter(a=>!a.result).length}</div>
@@ -515,10 +547,6 @@ function Main({sb}){
               const grouped={};wrPs.forEach(p=>{if(!grouped[p.page_num])grouped[p.page_num]=[];grouped[p.page_num].push(p)});
               return Object.entries(grouped).map(([pg,ps])=><span key={pg}><b>{pg}p</b> {ps.map(p=>p.num).join(",")}번 </span>);
             })()}
-          </div>
-          <div style={{display:"flex",gap:4,marginBottom:4}}>
-            <span style={{fontSize:11,color:"#888",lineHeight:"32px"}}>풀이란 {pLines}줄</span>
-            <input type="range" min="0" max="12" value={pLines} onChange={e=>setPLines(parseInt(e.target.value))} style={{flex:1,accentColor:"#ef4444"}}/>
           </div>
           <div style={{display:"flex",gap:4}}>
             <button onClick={()=>printWrong("question")} style={{flex:1,padding:"10px 0",borderRadius:8,border:"none",background:"#ef4444",color:"#fff",fontWeight:700,fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>📗 오답 출력</button>
