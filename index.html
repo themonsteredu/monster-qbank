@@ -211,23 +211,30 @@ function Main({user,onLogout}){
       const pages=[];for(let i=0;i<sel.length;i+=4)pages.push(sel.slice(i,i+4));
       const makeCard=(q,idx)=>{
         let h='<div class="card">';
-        h+='<div class="ch"><div class="nb">'+idx+'</div>';
-        h+='<div class="ci">'+bn(q.book_id)+'<br><span class="cs">'+q.page_num+'쪽 '+q.num+'번</span></div></div>';
-        if((mode==="question"||mode==="both")&&q.question_url)h+='<img src="'+q.question_url+'" class="qi">';
+        h+='<div class="ch">';
+        h+='<div class="nb"><span>'+idx+'</span></div>';
+        h+='<div class="ci"><span class="bk">'+bn(q.book_id)+'</span><span class="pg">'+q.page_num+'p '+q.num+'번</span></div>';
+        h+='</div>';
+        if((mode==="question"||mode==="both")&&q.question_url)h+='<div class="img-wrap"><img src="'+q.question_url+'" class="qi"></div>';
         if((mode==="solution"||mode==="both")&&q.solution_url){
-          if(mode==="both")h+='<div class="sd">';
-          h+='<div class="sl">해설</div><img src="'+q.solution_url+'" class="qi">';
-          if(mode==="both")h+='</div>';
+          h+='<div class="sol">';
+          h+='<div class="sl"><span class="sl-dot"></span>해설</div>';
+          h+='<img src="'+q.solution_url+'" class="qi">';
+          h+='</div>';
         }
-        if(mode==="question"||mode==="both")h+='<div class="lw"><div class="ll">풀이</div><div class="lines"></div></div>';
+        if(mode==="question"||mode==="both")h+='<div class="lw"><div class="lines"></div></div>';
         h+='</div>';return h;
       };
       let body='';
       pages.forEach((pg,pi)=>{
         body+='<div class="pg'+(pi<pages.length-1?' pb':'')+'">';
-        body+='<div class="hd"><img src="'+LOGO+'" class="lg"><div class="ht"><div class="h1">THE MONSTER ACADEMY</div><div class="h2">'+(sn?sn+' 학습지':'학습지')+'</div></div><div class="hr"><div>'+today()+'</div><div class="pn">'+(pi+1)+'/'+pages.length+'</div></div></div>';
+        // 헤더
+        body+='<div class="hd">';
+        body+='<div class="hd-left"><img src="'+LOGO+'" class="lg"><div class="hd-info"><div class="h1">THE MONSTER ACADEMY</div><div class="h2">'+(sn||'')+'</div></div></div>';
+        body+='<div class="hd-right"><div class="hd-date">'+today()+'</div><div class="hd-page">'+(pi+1)+' / '+pages.length+'</div></div>';
+        body+='</div>';
+        // 문제 그리드
         body+='<table class="gr">';
-        // 행1: 1번(좌) 2번(우)  행2: 3번(좌) 4번(우)
         for(let r=0;r<2;r++){
           body+='<tr class="row">';
           for(let c=0;c<2;c++){
@@ -235,40 +242,72 @@ function Main({user,onLogout}){
             if(idx<pg.length){
               body+='<td class="cl">'+makeCard(pg[idx],pi*4+idx+1)+'</td>';
             }else{
-              body+='<td class="cl"></td>';
+              body+='<td class="cl"><div class="card empty"></div></td>';
             }
           }
           body+='</tr>';
         }
         body+='</table>';
-        body+='<div class="ft"><span>더몬스터학원</span><span>아이의 미래를 생각합니다</span></div></div>';
+        // 푸터
+        body+='<div class="ft"><span>더몬스터학원</span><span>THE MONSTER ACADEMY</span></div>';
+        body+='</div>';
       });
-      const css=`*{margin:0;padding:0;box-sizing:border-box}
-body{font-family:Outfit,sans-serif;background:#fff}
-.pg{padding:10mm 7mm 10mm 7mm;width:210mm;height:297mm;margin:0 auto;display:flex;flex-direction:column}
+      const css=`@import url('https://fonts.googleapis.com/css2?family=Pretendard:wght@400;500;600;700;800&family=Outfit:wght@400;600;700;800&display=swap');
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Pretendard','Outfit',system-ui,sans-serif;background:#fff;color:#222}
+
+/* 페이지 */
+.pg{width:210mm;height:297mm;padding:9mm 8mm 8mm 8mm;margin:0 auto;display:flex;flex-direction:column}
 .pb{page-break-after:always}
-.hd{display:flex;align-items:center;gap:8px;padding-bottom:6px;border-bottom:2.5px solid #E8652D;flex-shrink:0}
-.lg{width:24px;height:24px;border-radius:6px}
-.ht{flex:1}.h1{font-size:7px;color:#aaa;font-weight:600;letter-spacing:1.5px}.h2{font-size:11px;font-weight:800;color:#1a1a1a}
-.hr{text-align:right;font-size:7px;color:#aaa;line-height:1.5}.pn{font-weight:700;color:#555}
-.gr{width:100%;border-collapse:separate;border-spacing:5px 5px;table-layout:fixed;flex:1}
+
+/* 헤더 */
+.hd{display:flex;align-items:center;justify-content:space-between;padding-bottom:7px;margin-bottom:4px;border-bottom:2px solid #E8652D;flex-shrink:0}
+.hd-left{display:flex;align-items:center;gap:7px}
+.lg{width:22px;height:22px;border-radius:5px}
+.hd-info{display:flex;flex-direction:column}
+.h1{font-family:'Outfit',sans-serif;font-size:6.5px;font-weight:700;color:#E8652D;letter-spacing:2px;text-transform:uppercase}
+.h2{font-size:11px;font-weight:800;color:#1a1a1a;margin-top:1px}
+.hd-right{text-align:right}
+.hd-date{font-size:7px;color:#999;font-weight:500}
+.hd-page{font-size:8px;font-weight:700;color:#E8652D;margin-top:1px}
+
+/* 그리드 */
+.gr{width:100%;border-collapse:separate;border-spacing:4px 4px;table-layout:fixed;flex:1}
 .row{height:50%}
-.cl{width:50%;vertical-align:top;padding:0;height:50%}
-.card{border:1.5px solid #e0e0e0;border-radius:8px;padding:6px 7px;background:#fafaf9;height:100%;display:flex;flex-direction:column}
-.ch{display:flex;align-items:center;gap:5px;margin-bottom:4px;flex-shrink:0}
-.nb{width:20px;height:20px;border-radius:50%;background:#E8652D;color:#fff;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;flex-shrink:0}
-.ci{font-size:8px;font-weight:700;color:#444;line-height:1.3}.cs{color:#aaa;font-weight:500}
-.qi{width:100%;display:block;border-radius:4px;margin-bottom:2px;flex-shrink:0}
-.sd{border-top:1.5px dashed #f59e0b;margin-top:4px;padding-top:4px;flex-shrink:0}
-.sl{font-size:6px;color:#f59e0b;font-weight:700;margin-bottom:2px}
-.lw{flex:1;display:flex;flex-direction:column;margin-top:3px;min-height:0}
-.ll{font-size:6px;color:#aaa;font-weight:600;margin-bottom:1px;flex-shrink:0}
-.lines{flex:1;background:repeating-linear-gradient(to bottom,transparent,transparent 19px,#ddd 19px,#ddd 20px)}
-.ft{padding-top:4px;border-top:1px solid #eee;display:flex;justify-content:space-between;font-size:6px;color:#ccc;flex-shrink:0}
+.cl{width:50%;vertical-align:top;height:50%}
+
+/* 카드 */
+.card{border:1px solid #e8e8e8;border-radius:6px;padding:6px 7px;height:100%;display:flex;flex-direction:column;background:#fff}
+.card.empty{border:1px dashed #e0e0e0;background:#fcfcfc}
+
+/* 카드 헤더 */
+.ch{display:flex;align-items:center;gap:6px;margin-bottom:5px;flex-shrink:0}
+.nb{width:22px;height:22px;border-radius:6px;background:#E8652D;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.nb span{font-family:'Outfit',sans-serif;font-size:10px;font-weight:800;color:#fff;line-height:1}
+.ci{display:flex;flex-direction:column;gap:1px}
+.bk{font-size:7.5px;font-weight:700;color:#333;line-height:1.2}
+.pg{font-size:7px;font-weight:500;color:#aaa}
+
+/* 문제 이미지 */
+.img-wrap{flex-shrink:0;margin-bottom:2px}
+.qi{width:100%;display:block;border-radius:3px}
+
+/* 해설 */
+.sol{border-top:1px dashed #f0c060;margin-top:4px;padding-top:4px;flex-shrink:0}
+.sl{font-size:6.5px;font-weight:700;color:#d4940a;margin-bottom:3px;display:flex;align-items:center;gap:3px}
+.sl-dot{width:4px;height:4px;border-radius:50%;background:#f0c060;display:inline-block}
+
+/* 풀이 줄 */
+.lw{flex:1;display:flex;flex-direction:column;margin-top:4px;min-height:0}
+.lines{flex:1;background-image:repeating-linear-gradient(to bottom,transparent,transparent 18px,#e0e0e0 18px,#e0e0e0 18.5px);background-size:100% 18.5px}
+
+/* 푸터 */
+.ft{padding-top:4px;border-top:1px solid #f0f0f0;display:flex;justify-content:space-between;font-size:6px;color:#ccc;font-weight:500;flex-shrink:0}
+
 @media print{
   @page{margin:0;size:A4}
   body{-webkit-print-color-adjust:exact;print-color-adjust:exact}
-  .pg{padding:8mm 6mm 8mm 6mm}
+  .pg{padding:8mm 7mm 7mm 7mm}
 }`;
       let iframe=document.getElementById("pf");
       if(iframe)iframe.remove();
@@ -278,15 +317,15 @@ body{font-family:Outfit,sans-serif;background:#fff}
       document.body.appendChild(iframe);
       const d=iframe.contentDocument||iframe.contentWindow.document;
       d.open();
-      d.write('<!DOCTYPE html><html><head><meta charset="utf-8"><link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet"><style>'+css+'</style></head><body>'+body+'</body></html>');
+      d.write('<!DOCTYPE html><html><head><meta charset="utf-8"><style>'+css+'</style></head><body>'+body+'</body></html>');
       d.close();
       const finalCheck=()=>{
         const imgs=iframe.contentDocument.querySelectorAll("img");
         const pending=[];
         imgs.forEach(img=>{if(!img.complete)pending.push(new Promise(r=>{img.onload=r;img.onerror=r}))});
         const fire=()=>{try{iframe.contentWindow.print()}catch(e){console.error(e)}};
-        if(!pending.length)setTimeout(fire,200);
-        else Promise.all(pending).then(()=>setTimeout(fire,200));
+        if(!pending.length)setTimeout(fire,300);
+        else Promise.all(pending).then(()=>setTimeout(fire,300));
         setTimeout(fire,10000);
       };
       iframe.onload=finalCheck;
@@ -294,7 +333,6 @@ body{font-family:Outfit,sans-serif;background:#fff}
     };
     preload(imgUrls).then(doPrint);
   };
-
   const setResult=async(aid,res)=>{setAssignments(p=>p.map(a=>a.id===aid?{...a,result:res}:a));await sb.from("assignments").update({result:res}).eq("id",aid)};
 
   const searchPrint=()=>{let r=[...problems];if(pBook)r=r.filter(p=>p.book_id===pBook);if(pPage.trim()){const pp=pPage.split(",").map(s=>s.trim()).filter(Boolean);r=r.filter(p=>pp.includes(p.page_num))}if(pNums.trim()){const nn=pNums.split(",").map(s=>s.trim()).filter(Boolean);r=r.filter(p=>nn.includes(p.num))}r.sort((a,b)=>(parseInt(a.page_num)||0)-(parseInt(b.page_num)||0)||(parseFloat(a.num)||0)-(parseFloat(b.num)||0));setPRes(r);setPChk(new Set(r.map(p=>p.id)));setPrintPv(null)};
