@@ -67,6 +67,7 @@ function Main({user,onLogout}){
   const[pvSlices,setPvSlices]=useState([]);
   const[newSN,setNewSN]=useState("");
   const[selStu,setSelStu]=useState("");
+  const[stuSearch,setStuSearch]=useState("");
   const[stuTab,setStuTab]=useState("assign");
   const[aBook,setABook]=useState("");
   const[aPage,setAPage]=useState("");
@@ -199,48 +200,66 @@ function Main({user,onLogout}){
   // 공통 즉시 인쇄 함수
   const directPrint=(sel,sn,mode)=>{
     if(!sel.length){alert("인쇄할 문제가 없어요");return}
-    const pages=[];for(let i=0;i<sel.length;i+=4)pages.push(sel.slice(i,i+4));
-    const lineH='<div style="border-bottom:1px solid #d6d3d1;height:20px"></div>';
-    const linesHtml=Array(pLines).fill(lineH).join("");
-    const makeCard=(q,idx)=>{
-      let h='<div style="flex:1;border:1.5px solid #e7e5e4;border-radius:10px;padding:8px;background:#fafaf9">';
-      h+='<div style="display:flex;align-items:center;gap:5px;margin-bottom:5px">';
-      h+='<div style="width:20px;height:20px;border-radius:50%;background:#E8652D;color:#fff;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;flex-shrink:0">'+idx+'</div>';
-      h+='<div style="font-size:9px;font-weight:700;color:#44403c;line-height:1.3">'+bn(q.book_id)+'<br><span style="color:#a8a29e;font-weight:500">'+q.page_num+'쪽 '+q.num+'번</span></div></div>';
-      if((mode==="question"||mode==="both")&&q.question_url)h+='<img src="'+q.question_url+'" style="width:100%;border-radius:6px;margin-bottom:4px">';
-      if((mode==="question"||mode==="both")&&pLines>0)h+='<div style="margin-top:3px"><div style="font-size:7px;color:#a8a29e;font-weight:600;margin-bottom:1px">풀이</div>'+linesHtml+'</div>';
-      if((mode==="solution"||mode==="both")&&q.solution_url){
-        if(mode==="both")h+='<div style="border-top:1.5px dashed #f59e0b;margin-top:5px;padding-top:5px">';
-        h+='<div style="font-size:7px;color:#f59e0b;font-weight:700;margin-bottom:2px">해설</div>';
-        h+='<img src="'+q.solution_url+'" style="width:100%;border-radius:6px">';
-        if(mode==="both")h+='</div>';
-      }
-      h+='</div>';return h;
-    };
-    let body='';
-    pages.forEach((pg,pi)=>{
-      const left=pg.filter((_,i)=>i%2===0),right=pg.filter((_,i)=>i%2===1);
-      body+='<div style="page-break-after:'+(pi<pages.length-1?'always':'auto')+';padding:16px;max-width:720px;margin:0 auto">';
-      body+='<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;padding-bottom:8px;border-bottom:2.5px solid #E8652D">';
-      body+='<img src="'+LOGO+'" style="width:28px;height:28px;border-radius:6px">';
-      body+='<div style="flex:1"><div style="font-size:8px;color:#a8a29e;font-weight:600;letter-spacing:1px">THE MONSTER ACADEMY</div>';
-      body+='<div style="font-size:13px;font-weight:800;color:#1c1917">'+(sn?sn+' 학습지':'학습지')+'</div></div>';
-      body+='<div style="text-align:right;font-size:8px;color:#a8a29e;line-height:1.6"><div>'+today()+'</div><div style="font-weight:700;color:#57534e">'+(pi+1)+' / '+pages.length+'</div></div></div>';
-      body+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">';
-      body+='<div style="display:flex;flex-direction:column;gap:10px">';
-      left.forEach((q,qi)=>{body+=makeCard(q,pi*4+qi*2+1)});
-      body+='</div><div style="display:flex;flex-direction:column;gap:10px">';
-      right.forEach((q,qi)=>{body+=makeCard(q,pi*4+qi*2+2)});
-      body+='</div></div>';
-      body+='<div style="margin-top:10px;padding-top:6px;border-top:1px solid #e7e5e4;display:flex;justify-content:space-between"><span style="font-size:7px;color:#d6d3d1">더몬스터학원</span><span style="font-size:7px;color:#d6d3d1">아이의 미래를 생각합니다</span></div>';
-      body+='</div>';
+    const imgUrls=[];
+    sel.forEach(q=>{
+      if((mode==="question"||mode==="both")&&q.question_url)imgUrls.push(q.question_url);
+      if((mode==="solution"||mode==="both")&&q.solution_url)imgUrls.push(q.solution_url);
     });
-    let iframe=document.getElementById("pf");
-    if(!iframe){iframe=document.createElement("iframe");iframe.id="pf";iframe.style.cssText="position:fixed;left:-9999px;top:0;width:800px;height:600px;border:none";document.body.appendChild(iframe)}
-    const d=iframe.contentDocument||iframe.contentWindow.document;
-    d.open();d.write('<!DOCTYPE html><html><head><meta charset="utf-8"><link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet"><style>body{font-family:Outfit,sans-serif;margin:0}img{max-width:100%}@media print{body{margin:0}}</style></head><body>'+body+'</body></html>');
-    d.close();
-    setTimeout(()=>{try{iframe.contentWindow.print()}catch{}},600);
+    imgUrls.push(LOGO);
+    const preload=urls=>Promise.all(urls.map(u=>new Promise(r=>{const img=new Image();img.onload=()=>r(true);img.onerror=()=>r(false);img.src=u})));
+    const doPrint=()=>{
+      const pages=[];for(let i=0;i<sel.length;i+=4)pages.push(sel.slice(i,i+4));
+      const lineH='<div style="border-bottom:1px solid #ddd;height:22px"></div>';
+      const linesHtml=Array(pLines).fill(lineH).join("");
+      const makeCard=(q,idx)=>{
+        let h='<div class="card">';
+        h+='<div class="ch"><div class="nb">'+idx+'</div>';
+        h+='<div class="ci">'+bn(q.book_id)+'<br><span class="cs">'+q.page_num+'쪽 '+q.num+'번</span></div></div>';
+        if((mode==="question"||mode==="both")&&q.question_url)h+='<img src="'+q.question_url+'" class="qi">';
+        if((mode==="question"||mode==="both")&&pLines>0)h+='<div class="lw"><div class="ll">풀이</div>'+linesHtml+'</div>';
+        if((mode==="solution"||mode==="both")&&q.solution_url){
+          if(mode==="both")h+='<div class="sd">';
+          h+='<div class="sl">해설</div><img src="'+q.solution_url+'" class="qi">';
+          if(mode==="both")h+='</div>';
+        }
+        h+='</div>';return h;
+      };
+      let body='';
+      pages.forEach((pg,pi)=>{
+        const left=pg.filter((_,i)=>i%2===0),right=pg.filter((_,i)=>i%2===1);
+        body+='<div class="pg'+(pi<pages.length-1?' pb':'')+'">';
+        body+='<div class="hd"><img src="'+LOGO+'" class="lg"><div class="ht"><div class="h1">THE MONSTER ACADEMY</div><div class="h2">'+(sn?sn+' 학습지':'학습지')+'</div></div><div class="hr"><div>'+today()+'</div><div class="pn">'+(pi+1)+'/'+pages.length+'</div></div></div>';
+        body+='<table class="gr"><tr><td class="cl">';
+        left.forEach((q,qi)=>{body+=makeCard(q,pi*4+qi*2+1)});
+        body+='</td><td class="cl">';
+        right.forEach((q,qi)=>{body+=makeCard(q,pi*4+qi*2+2)});
+        body+='</td></tr></table>';
+        body+='<div class="ft"><span>더몬스터학원</span><span>아이의 미래를 생각합니다</span></div></div>';
+      });
+      const css='*{margin:0;padding:0;box-sizing:border-box}body{font-family:Outfit,sans-serif;background:#fff}.pg{padding:12mm 8mm 14mm 8mm;max-width:210mm;margin:0 auto}.pb{page-break-after:always}.hd{display:flex;align-items:center;gap:8px;margin-bottom:8px;padding-bottom:6px;border-bottom:2.5px solid #E8652D}.lg{width:26px;height:26px;border-radius:6px}.ht{flex:1}.h1{font-size:7px;color:#aaa;font-weight:600;letter-spacing:1.5px}.h2{font-size:12px;font-weight:800;color:#1a1a1a}.hr{text-align:right;font-size:7px;color:#aaa;line-height:1.6}.pn{font-weight:700;color:#555}.gr{width:100%;border-collapse:separate;border-spacing:6px 0;table-layout:fixed}.cl{width:50%;vertical-align:top;padding:0}.card{border:1.5px solid #e5e5e5;border-radius:8px;padding:7px 8px;background:#fafaf9;margin-bottom:6px}.ch{display:flex;align-items:center;gap:5px;margin-bottom:5px}.nb{width:20px;height:20px;border-radius:50%;background:#E8652D;color:#fff;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;flex-shrink:0}.ci{font-size:8px;font-weight:700;color:#444;line-height:1.3}.cs{color:#aaa;font-weight:500}.qi{width:100%;display:block;border-radius:4px;margin-bottom:3px}.lw{margin-top:3px}.ll{font-size:6px;color:#aaa;font-weight:600;margin-bottom:1px}.sd{border-top:1.5px dashed #f59e0b;margin-top:5px;padding-top:5px}.sl{font-size:6px;color:#f59e0b;font-weight:700;margin-bottom:2px}.ft{margin-top:8px;padding-top:5px;border-top:1px solid #eee;display:flex;justify-content:space-between;font-size:6px;color:#ccc}@media print{@page{margin:0;size:A4}body{-webkit-print-color-adjust:exact;print-color-adjust:exact}.pg{padding:10mm 7mm 12mm 7mm}.card{break-inside:avoid}.qi{break-inside:avoid}}';
+      let iframe=document.getElementById("pf");
+      if(iframe)iframe.remove();
+      iframe=document.createElement("iframe");
+      iframe.id="pf";
+      iframe.style.cssText="position:fixed;left:-9999px;top:0;width:800px;height:1200px;border:none";
+      document.body.appendChild(iframe);
+      const d=iframe.contentDocument||iframe.contentWindow.document;
+      d.open();
+      d.write('<!DOCTYPE html><html><head><meta charset="utf-8"><link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet"><style>'+css+'</style></head><body>'+body+'</body></html>');
+      d.close();
+      const finalCheck=()=>{
+        const imgs=iframe.contentDocument.querySelectorAll("img");
+        const pending=[];
+        imgs.forEach(img=>{if(!img.complete)pending.push(new Promise(r=>{img.onload=r;img.onerror=r}))});
+        const fire=()=>{try{iframe.contentWindow.print()}catch(e){console.error(e)}};
+        if(!pending.length)setTimeout(fire,200);
+        else Promise.all(pending).then(()=>setTimeout(fire,200));
+        setTimeout(fire,10000);
+      };
+      iframe.onload=finalCheck;
+      setTimeout(finalCheck,3000);
+    };
+    preload(imgUrls).then(doPrint);
   };
 
   const setResult=async(aid,res)=>{setAssignments(p=>p.map(a=>a.id===aid?{...a,result:res}:a));await sb.from("assignments").update({result:res}).eq("id",aid)};
@@ -407,12 +426,15 @@ function Main({user,onLogout}){
 
     {/* ═══════════ 학생 탭 ═══════════ */}
     {tab==="stu"&&<div>
-      <div style={{display:"flex",gap:6,marginBottom:10}}>
+      {/* 학생 추가 */}
+      <div style={{display:"flex",gap:6,marginBottom:6}}>
         <input key={snKey} ref={snRef} placeholder="학생 이름" onKeyDown={e=>{if(e.key==="Enter"&&!e.nativeEvent.isComposing)addStu()}} style={{...iBS,flex:1,padding:"9px 12px",fontSize:13}}/>
         <button onClick={addStu} style={{padding:"9px 16px",borderRadius:10,border:"none",background:"#E8652D",color:"#fff",fontWeight:700,fontSize:13,cursor:"pointer",fontFamily:"inherit",whiteSpace:"nowrap"}}>+ 추가</button>
       </div>
+      {/* 학생 검색 */}
+      {students.length>3&&<input value={stuSearch} onChange={e=>setStuSearch(e.target.value)} placeholder="🔍 학생 검색..." style={{width:"100%",padding:"7px 12px",borderRadius:8,border:"1px solid #eee",fontSize:12,outline:"none",marginBottom:6,boxSizing:"border-box",background:"#fafafa"}}/>}
 
-      {students.map((s,si)=>{
+      {students.filter(s=>!stuSearch.trim()||s.name.includes(stuSearch.trim())).map((s,si)=>{
         const sa=assignments.filter(a=>a.student_id===s.id);const co=sa.filter(a=>a.result==="correct").length;const wr=sa.filter(a=>a.result==="wrong").length;
         return<div key={s.id} onClick={()=>{setSelStu(selStu===s.id?"":s.id);setABook("");setAChk(new Set());setAExpPage("")}} style={{display:"flex",alignItems:"center",gap:10,padding:"10px 12px",marginBottom:4,background:selStu===s.id?"#fff8f5":"#fff",border:selStu===s.id?"1.5px solid #E8652D":"1px solid #eee",borderRadius:10,cursor:"pointer"}}>
           <div style={{width:34,height:34,borderRadius:10,background:getAC(si),display:"flex",alignItems:"center",justifyContent:"center",fontSize:15,fontWeight:800,color:"#fff",flexShrink:0}}>{s.name[0]}</div>
@@ -424,7 +446,7 @@ function Main({user,onLogout}){
         </div>;
       })}
 
-      {/* ═══ 학생 선택 후: 단일 흐름 ═══ */}
+      {/* ═══ 학생 선택 후 ═══ */}
       {selStu&&<div style={{marginTop:12}}>
 
         {/* ── STEP 1: 문제 선택 ── */}
@@ -457,7 +479,7 @@ function Main({user,onLogout}){
             </div>;
           })()}
 
-          {/* 선택한 문제 미리보기 */}
+          {/* 선택한 문제 요약 + 버튼 */}
           {aChk.size>0&&<div style={{marginTop:10}}>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
               <span style={{fontSize:12,fontWeight:700,color:"#E8652D"}}>{aChk.size}문제 선택</span>
@@ -470,7 +492,6 @@ function Main({user,onLogout}){
                 return Object.entries(grouped).map(([pg,ps])=><span key={pg}><b>{pg}p</b> {ps.map(p=>p.num).join(",")}번 </span>);
               })()}
             </div>
-            {/* 이미지 미리보기 (접기/펴기) */}
             <button onClick={()=>setAExpPage(aExpPage==="preview"?"":"preview")} style={{width:"100%",padding:"6px 0",borderRadius:6,border:"1px solid #ddd",background:aExpPage==="preview"?"#f5f5f5":"#fff",fontSize:11,fontWeight:600,cursor:"pointer",fontFamily:"inherit",color:"#888",marginBottom:6}}>{aExpPage==="preview"?"▼ 미리보기 닫기":"▶ 문제 이미지 미리보기"}</button>
             {aExpPage==="preview"&&<div style={{maxHeight:400,overflowY:"auto",border:"1px solid #eee",borderRadius:8,padding:6,marginBottom:6,background:"#fafafa"}}>
               {problems.filter(p=>aChk.has(p.id)).sort((a,b)=>(parseInt(a.page_num)||0)-(parseInt(b.page_num)||0)||(parseFloat(a.num)||0)-(parseFloat(b.num)||0)).map(q=>
@@ -480,12 +501,11 @@ function Main({user,onLogout}){
                 </div>
               )}
             </div>}
-            {/* 출제 / 출력 버튼 */}
             <div style={{display:"flex",gap:4,marginBottom:4}}>
               <span style={{fontSize:11,color:"#888",lineHeight:"32px"}}>풀이란 {pLines}줄</span>
               <input type="range" min="0" max="12" value={pLines} onChange={e=>setPLines(parseInt(e.target.value))} style={{flex:1,accentColor:"#E8652D"}}/>
             </div>
-            <div style={{display:"flex",gap:4,marginBottom:4}}>
+            <div style={{display:"flex",gap:4}}>
               <button onClick={doAssign} disabled={saving} style={{flex:1,padding:"10px 0",borderRadius:8,border:"2px solid #E8652D",background:"#fff",color:"#E8652D",fontWeight:700,fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>📋 출제만</button>
               <button onClick={()=>doPrintSelected("question")} disabled={saving} style={{flex:1,padding:"10px 0",borderRadius:8,border:"none",background:"#059669",color:"#fff",fontWeight:700,fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>📗 출력</button>
               <button onClick={()=>doPrintSelected("both")} disabled={saving} style={{flex:1,padding:"10px 0",borderRadius:8,border:"none",background:"#E8652D",color:"#fff",fontWeight:700,fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>📗+📙</button>
@@ -493,14 +513,11 @@ function Main({user,onLogout}){
           </div>}
         </div>
 
-        {/* ── STEP 2: 채점 + 재출력 ── */}
+        {/* ── STEP 2: 채점 + 재출력(문제/해설) ── */}
         {stuAs.length>0&&<div style={{background:"#fff",borderRadius:10,border:"1px solid #eee",padding:12,marginBottom:12}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
             <div style={{fontSize:13,fontWeight:700,color:"#333"}}>✏️ 채점 <span style={{fontWeight:400,color:"#aaa",fontSize:11}}>({stuAs.length}문제)</span></div>
-            <div style={{display:"flex",gap:3}}>
-              <button onClick={()=>setAExpPage(aExpPage==="wrongOnly"?"":"wrongOnly")} style={{padding:"3px 8px",borderRadius:5,border:aExpPage==="wrongOnly"?"1.5px solid #ef4444":"1px solid #ddd",background:aExpPage==="wrongOnly"?"#fef2f2":"#fff",color:aExpPage==="wrongOnly"?"#ef4444":"#888",fontSize:10,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>{aExpPage==="wrongOnly"?"전체":"오답만"}</button>
-              <button onClick={()=>reprintAssigned("question")} style={{padding:"3px 8px",borderRadius:5,border:"1px solid #ddd",background:"#fff",color:"#888",fontSize:10,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>🖨️ 재출력</button>
-            </div>
+            <button onClick={()=>setAExpPage(aExpPage==="wrongOnly"?"":"wrongOnly")} style={{padding:"3px 8px",borderRadius:5,border:aExpPage==="wrongOnly"?"1.5px solid #ef4444":"1px solid #ddd",background:aExpPage==="wrongOnly"?"#fef2f2":"#fff",color:aExpPage==="wrongOnly"?"#ef4444":"#888",fontSize:10,fontWeight:600,cursor:"pointer",fontFamily:"inherit"}}>{aExpPage==="wrongOnly"?"전체":"오답만"}</button>
           </div>
           <div style={{fontSize:11,color:"#aaa",marginBottom:8}}><span style={{color:"#10b981",fontWeight:600}}>✓{stuAs.filter(a=>a.result==="correct").length}</span> · <span style={{color:"#ef4444",fontWeight:600}}>✗{stuWr.length}</span> · 미채점 {stuAs.filter(a=>!a.result).length}</div>
           {(aExpPage==="wrongOnly"?stuWr:stuAs).map(a=>{const prob=problems.find(p=>p.id===a.problem_id);if(!prob)return null;return(
@@ -513,11 +530,17 @@ function Main({user,onLogout}){
               </div>
             </div>);
           })}
+          {/* 재출력 버튼 (문제/해설/둘다) */}
+          <div style={{display:"flex",gap:4,marginTop:8}}>
+            <button onClick={()=>reprintAssigned("question")} style={{flex:1,padding:"8px 0",borderRadius:6,border:"1px solid #ddd",background:"#fff",fontSize:11,fontWeight:600,cursor:"pointer",fontFamily:"inherit",color:"#555"}}>🖨️ 문제 재출력</button>
+            <button onClick={()=>reprintAssigned("solution")} style={{flex:1,padding:"8px 0",borderRadius:6,border:"1px solid #ddd",background:"#fff",fontSize:11,fontWeight:600,cursor:"pointer",fontFamily:"inherit",color:"#d97706"}}>📙 해설 출력</button>
+            <button onClick={()=>reprintAssigned("both")} style={{flex:1,padding:"8px 0",borderRadius:6,border:"1px solid #ddd",background:"#fff",fontSize:11,fontWeight:600,cursor:"pointer",fontFamily:"inherit",color:"#E8652D"}}>📗+📙</button>
+          </div>
         </div>}
 
-        {/* ── STEP 3: 오답 재출력 ── */}
+        {/* ── STEP 3: 오답 출력 ── */}
         {stuWr.length>0&&<div style={{background:"#fef2f2",borderRadius:10,border:"1px solid #fecaca",padding:12}}>
-          <div style={{fontSize:13,fontWeight:700,color:"#ef4444",marginBottom:8}}>❌ 오답 {stuWr.length}문제</div>
+          <div style={{fontSize:13,fontWeight:700,color:"#ef4444",marginBottom:6}}>❌ 오답 {stuWr.length}문제</div>
           <div style={{fontSize:11,color:"#888",marginBottom:8}}>
             {(()=>{
               const wrPs=stuWr.map(a=>problems.find(p=>p.id===a.problem_id)).filter(Boolean).sort((a,b)=>(parseInt(a.page_num)||0)-(parseInt(b.page_num)||0)||(parseFloat(a.num)||0)-(parseFloat(b.num)||0));
@@ -527,7 +550,8 @@ function Main({user,onLogout}){
           </div>
           <div style={{display:"flex",gap:4}}>
             <button onClick={()=>printWrong("question")} style={{flex:1,padding:"10px 0",borderRadius:8,border:"none",background:"#ef4444",color:"#fff",fontWeight:700,fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>📗 오답 출력</button>
-            <button onClick={()=>printWrong("both")} style={{flex:1,padding:"10px 0",borderRadius:8,border:"none",background:"#dc2626",color:"#fff",fontWeight:700,fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>📗+📙 출력</button>
+            <button onClick={()=>printWrong("solution")} style={{flex:1,padding:"10px 0",borderRadius:8,border:"none",background:"#d97706",color:"#fff",fontWeight:700,fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>📙 오답해설</button>
+            <button onClick={()=>printWrong("both")} style={{flex:1,padding:"10px 0",borderRadius:8,border:"none",background:"#dc2626",color:"#fff",fontWeight:700,fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>📗+📙</button>
           </div>
         </div>}
       </div>}
