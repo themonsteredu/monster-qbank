@@ -222,7 +222,6 @@ function Main({user,onLogout}){
           h+='<img src="'+q.solution_url+'" class="qi">';
           h+='</div>';
         }
-        if(mode==="question"||mode==="both")h+='<div class="lw"><div class="lines"></div></div>';
         h+='</div>';return h;
       };
       let body='';
@@ -263,8 +262,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#2
 .qi{width:100%;display:block;border-radius:3px;flex:0 0 auto}
 .sol{border-top:1px dashed #e8c55a;margin-top:3px;padding-top:3px;flex:0 0 auto}
 .sl{font-size:6.5px;font-weight:700;color:#c49000;margin-bottom:2px}
-.lw{flex:1;display:flex;flex-direction:column;margin-top:3px;min-height:0;overflow:hidden}
-.lines{flex:1;background:repeating-linear-gradient(to bottom,transparent 0px,transparent 17.5px,#d0d0d0 17.5px,#d0d0d0 18px)}
 .ft{flex:0 0 auto;padding-top:3px;border-top:1px solid #eee;display:flex;justify-content:space-between;font-size:6px;color:#ccc;font-weight:500}
 @media print{@page{margin:0;size:A4}body{-webkit-print-color-adjust:exact;print-color-adjust:exact}.pg{padding:7mm}}`;
       let iframe=document.getElementById("pf");
@@ -530,10 +527,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#2
                 </div>
               )}
             </div>}
-            <div style={{display:"flex",gap:4,marginBottom:4}}>
-              <span style={{fontSize:11,color:"#888",lineHeight:"32px"}}>풀이란 {pLines}줄</span>
-              <input type="range" min="0" max="12" value={pLines} onChange={e=>setPLines(parseInt(e.target.value))} style={{flex:1,accentColor:"#E8652D"}}/>
-            </div>
             <div style={{display:"flex",gap:4}}>
               <button onClick={doAssign} disabled={saving} style={{flex:1,padding:"10px 0",borderRadius:8,border:"2px solid #E8652D",background:"#fff",color:"#E8652D",fontWeight:700,fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>📋 출제만</button>
               <button onClick={()=>doPrintSelected("question")} disabled={saving} style={{flex:1,padding:"10px 0",borderRadius:8,border:"none",background:"#059669",color:"#fff",fontWeight:700,fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>📗 출력</button>
@@ -648,10 +641,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#2
           })()}
         </div>
         <div style={{padding:"8px 10px",borderTop:"1px solid #fed7aa"}}>
-          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
-            <span style={{fontSize:12,fontWeight:600,color:"#555"}}>풀이란 {pLines}줄</span>
-          </div>
-          <input type="range" min="0" max="12" value={pLines} onChange={e=>setPLines(parseInt(e.target.value))} style={{width:"100%",accentColor:"#E8652D",marginBottom:8}}/>
           <div style={{display:"flex",gap:6}}>
             <button onClick={()=>{const pool=pRes.length>0?pRes:problems;const sel=pool.filter(p=>pChk.has(p.id));const sn=students.find(s=>s.id===pStu)?.name||"";directPrint(sel,sn,"question")}} style={{flex:1,padding:"11px 0",borderRadius:8,border:"none",background:"#059669",color:"#fff",fontWeight:700,fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>📗 문제</button>
             <button onClick={()=>{const pool=pRes.length>0?pRes:problems;const sel=pool.filter(p=>pChk.has(p.id));const sn=students.find(s=>s.id===pStu)?.name||"";directPrint(sel,sn,"solution")}} style={{flex:1,padding:"11px 0",borderRadius:8,border:"none",background:"#d97706",color:"#fff",fontWeight:700,fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>📙 해설</button>
