@@ -137,7 +137,7 @@ function Main({user,onLogout}){
     if(!orphans.length){alert("병합할 항목 없음");return}
     let merged=0,up=[...problems];
     for(const o of orphans){
-      const target=bkPs.find(p=>p.question_url&&String(p.num)===String(o.num)&&p.id!==o.id);
+      const target=bkPs.find(p=>p.question_url&&String(p.num)===String(o.num)&&String(p.page_num)===String(o.page_num)&&p.id!==o.id);
       if(target&&!target.solution_url){
         await sb.from("problems").update({solution_url:o.solution_url}).eq("id",target.id);
         await sb.from("problems").delete().eq("id",o.id);
@@ -278,13 +278,13 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#2
         const imgs=iframe.contentDocument.querySelectorAll("img");
         const pending=[];
         imgs.forEach(img=>{if(!img.complete)pending.push(new Promise(r=>{img.onload=r;img.onerror=r}))});
-        const fire=()=>{try{iframe.contentWindow.print()}catch(e){console.error(e)}};
+        let printed=false;
+        const fire=()=>{if(printed)return;printed=true;try{iframe.contentWindow.print()}catch(e){console.error(e)}};
         if(!pending.length)setTimeout(fire,300);
         else Promise.all(pending).then(()=>setTimeout(fire,300));
         setTimeout(fire,10000);
       };
-      iframe.onload=finalCheck;
-      setTimeout(finalCheck,3000);
+      iframe.onload=()=>setTimeout(finalCheck,100);
     };
     preload(imgUrls).then(doPrint);
   };
