@@ -560,21 +560,49 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#2
           </div>
         </div>}
 
-        {/* ── STEP 3: 오답 출력 ── */}
-        {stuWr.length>0&&<div style={{background:"#fef2f2",borderRadius:10,border:"1px solid #fecaca",padding:12}}>
-          <div style={{fontSize:13,fontWeight:700,color:"#ef4444",marginBottom:6}}>❌ 오답 {stuWr.length}문제</div>
-          <div style={{fontSize:11,color:"#888",marginBottom:8}}>
+        {/* ── STEP 3: 오답 내역 (접기/펼치기) ── */}
+        {stuWr.length>0&&<div style={{borderRadius:10,border:"1px solid #fecaca",overflow:"hidden"}}>
+          <button onClick={()=>setAExpPage(aExpPage==="wrong"?"":"wrong")} style={{width:"100%",padding:"10px 12px",border:"none",background:"#fef2f2",cursor:"pointer",fontFamily:"inherit",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+            <span style={{fontSize:13,fontWeight:700,color:"#ef4444"}}>❌ 오답 {stuWr.length}문제</span>
+            <span style={{fontSize:11,color:"#ef4444"}}>{aExpPage==="wrong"?"▼ 닫기":"▶ 펼치기"}</span>
+          </button>
+          {aExpPage==="wrong"&&<div style={{padding:10,background:"#fff"}}>
             {(()=>{
-              const wrPs=stuWr.map(a=>problems.find(p=>p.id===a.problem_id)).filter(Boolean).sort((a,b)=>(parseInt(a.page_num)||0)-(parseInt(b.page_num)||0)||(parseFloat(a.num)||0)-(parseFloat(b.num)||0));
-              const grouped={};wrPs.forEach(p=>{if(!grouped[p.page_num])grouped[p.page_num]=[];grouped[p.page_num].push(p)});
-              return Object.entries(grouped).map(([pg,ps])=><span key={pg}><b>{pg}p</b> {ps.map(p=>p.num).join(",")}번 </span>);
+              // 날짜별 그룹핑
+              const byDate={};
+              stuWr.forEach(a=>{const d=a.assigned_date||"날짜없음";if(!byDate[d])byDate[d]=[];byDate[d].push(a)});
+              const dates=Object.keys(byDate).sort((a,b)=>b.localeCompare(a));
+              return dates.map(dt=>{
+                const items=byDate[dt];
+                const wrProbs=items.map(a=>problems.find(p=>p.id===a.problem_id)).filter(Boolean).sort((a,b)=>(parseInt(a.page_num)||0)-(parseInt(b.page_num)||0)||(parseFloat(a.num)||0)-(parseFloat(b.num)||0));
+                const grouped={};wrProbs.forEach(p=>{if(!grouped[p.page_num])grouped[p.page_num]=[];grouped[p.page_num].push(p)});
+                const summary=Object.entries(grouped).map(([pg,ps])=>pg+"p "+ps.map(p=>p.num).join(",")+"번").join(" ");
+                const pids=items.map(a=>a.problem_id);
+                const printByDate=(mode)=>{
+                  const ps=problems.filter(p=>pids.includes(p.id)).sort((a,b)=>(parseInt(a.page_num)||0)-(parseInt(b.page_num)||0)||(parseFloat(a.num)||0)-(parseFloat(b.num)||0));
+                  const sn=students.find(s=>s.id===selStu)?.name||"";
+                  directPrint(ps,sn,mode);
+                };
+                return<div key={dt} style={{marginBottom:8,padding:"8px 10px",border:"1px solid #fee2e2",borderRadius:8,background:"#fffbfb"}}>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
+                    <span style={{fontSize:12,fontWeight:700,color:"#ef4444"}}>{dt} <span style={{fontWeight:500,color:"#999"}}>({items.length}문제)</span></span>
+                  </div>
+                  <div style={{fontSize:10,color:"#888",marginBottom:6}}>{summary}</div>
+                  <div style={{display:"flex",gap:3}}>
+                    <button onClick={()=>printByDate("question")} style={{flex:1,padding:"6px 0",borderRadius:5,border:"none",background:"#ef4444",color:"#fff",fontWeight:600,fontSize:10,cursor:"pointer",fontFamily:"inherit"}}>📗 출력</button>
+                    <button onClick={()=>printByDate("solution")} style={{flex:1,padding:"6px 0",borderRadius:5,border:"none",background:"#d97706",color:"#fff",fontWeight:600,fontSize:10,cursor:"pointer",fontFamily:"inherit"}}>📙 해설</button>
+                    <button onClick={()=>printByDate("both")} style={{flex:1,padding:"6px 0",borderRadius:5,border:"none",background:"#dc2626",color:"#fff",fontWeight:600,fontSize:10,cursor:"pointer",fontFamily:"inherit"}}>📗+📙</button>
+                  </div>
+                </div>;
+              });
             })()}
-          </div>
-          <div style={{display:"flex",gap:4}}>
-            <button onClick={()=>printWrong("question")} style={{flex:1,padding:"10px 0",borderRadius:8,border:"none",background:"#ef4444",color:"#fff",fontWeight:700,fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>📗 오답 출력</button>
-            <button onClick={()=>printWrong("solution")} style={{flex:1,padding:"10px 0",borderRadius:8,border:"none",background:"#d97706",color:"#fff",fontWeight:700,fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>📙 오답해설</button>
-            <button onClick={()=>printWrong("both")} style={{flex:1,padding:"10px 0",borderRadius:8,border:"none",background:"#dc2626",color:"#fff",fontWeight:700,fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>📗+📙</button>
-          </div>
+            {/* 전체 오답 출력 */}
+            <div style={{display:"flex",gap:4,marginTop:4,paddingTop:8,borderTop:"1px solid #fee2e2"}}>
+              <button onClick={()=>printWrong("question")} style={{flex:1,padding:"9px 0",borderRadius:6,border:"none",background:"#ef4444",color:"#fff",fontWeight:700,fontSize:12,cursor:"pointer",fontFamily:"inherit"}}>📗 전체 오답</button>
+              <button onClick={()=>printWrong("solution")} style={{flex:1,padding:"9px 0",borderRadius:6,border:"none",background:"#d97706",color:"#fff",fontWeight:700,fontSize:12,cursor:"pointer",fontFamily:"inherit"}}>📙 전체 해설</button>
+              <button onClick={()=>printWrong("both")} style={{flex:1,padding:"9px 0",borderRadius:6,border:"none",background:"#dc2626",color:"#fff",fontWeight:700,fontSize:12,cursor:"pointer",fontFamily:"inherit"}}>📗+📙 전체</button>
+            </div>
+          </div>}
         </div>}
       </div>}
     </div>}
