@@ -209,34 +209,67 @@ function Main({user,onLogout}){
     const preload=urls=>Promise.all(urls.map(u=>new Promise(r=>{const img=new Image();img.onload=()=>r(true);img.onerror=()=>r(false);img.src=u})));
     const doPrint=()=>{
       const pages=[];for(let i=0;i<sel.length;i+=4)pages.push(sel.slice(i,i+4));
-      const lineH='<div style="border-bottom:1px solid #ddd;height:22px"></div>';
-      const linesHtml=Array(pLines).fill(lineH).join("");
       const makeCard=(q,idx)=>{
         let h='<div class="card">';
         h+='<div class="ch"><div class="nb">'+idx+'</div>';
         h+='<div class="ci">'+bn(q.book_id)+'<br><span class="cs">'+q.page_num+'쪽 '+q.num+'번</span></div></div>';
         if((mode==="question"||mode==="both")&&q.question_url)h+='<img src="'+q.question_url+'" class="qi">';
-        if((mode==="question"||mode==="both")&&pLines>0)h+='<div class="lw"><div class="ll">풀이</div>'+linesHtml+'</div>';
         if((mode==="solution"||mode==="both")&&q.solution_url){
           if(mode==="both")h+='<div class="sd">';
           h+='<div class="sl">해설</div><img src="'+q.solution_url+'" class="qi">';
           if(mode==="both")h+='</div>';
         }
+        if(mode==="question"||mode==="both")h+='<div class="lw"><div class="ll">풀이</div><div class="lines"></div></div>';
         h+='</div>';return h;
       };
       let body='';
       pages.forEach((pg,pi)=>{
-        const left=pg.filter((_,i)=>i%2===0),right=pg.filter((_,i)=>i%2===1);
         body+='<div class="pg'+(pi<pages.length-1?' pb':'')+'">';
         body+='<div class="hd"><img src="'+LOGO+'" class="lg"><div class="ht"><div class="h1">THE MONSTER ACADEMY</div><div class="h2">'+(sn?sn+' 학습지':'학습지')+'</div></div><div class="hr"><div>'+today()+'</div><div class="pn">'+(pi+1)+'/'+pages.length+'</div></div></div>';
-        body+='<table class="gr"><tr><td class="cl">';
-        left.forEach((q,qi)=>{body+=makeCard(q,pi*4+qi*2+1)});
-        body+='</td><td class="cl">';
-        right.forEach((q,qi)=>{body+=makeCard(q,pi*4+qi*2+2)});
-        body+='</td></tr></table>';
+        body+='<table class="gr">';
+        // 행1: 1번(좌) 2번(우)  행2: 3번(좌) 4번(우)
+        for(let r=0;r<2;r++){
+          body+='<tr class="row">';
+          for(let c=0;c<2;c++){
+            const idx=r*2+c;
+            if(idx<pg.length){
+              body+='<td class="cl">'+makeCard(pg[idx],pi*4+idx+1)+'</td>';
+            }else{
+              body+='<td class="cl"></td>';
+            }
+          }
+          body+='</tr>';
+        }
+        body+='</table>';
         body+='<div class="ft"><span>더몬스터학원</span><span>아이의 미래를 생각합니다</span></div></div>';
       });
-      const css='*{margin:0;padding:0;box-sizing:border-box}body{font-family:Outfit,sans-serif;background:#fff}.pg{padding:12mm 8mm 14mm 8mm;max-width:210mm;margin:0 auto}.pb{page-break-after:always}.hd{display:flex;align-items:center;gap:8px;margin-bottom:8px;padding-bottom:6px;border-bottom:2.5px solid #E8652D}.lg{width:26px;height:26px;border-radius:6px}.ht{flex:1}.h1{font-size:7px;color:#aaa;font-weight:600;letter-spacing:1.5px}.h2{font-size:12px;font-weight:800;color:#1a1a1a}.hr{text-align:right;font-size:7px;color:#aaa;line-height:1.6}.pn{font-weight:700;color:#555}.gr{width:100%;border-collapse:separate;border-spacing:6px 0;table-layout:fixed}.cl{width:50%;vertical-align:top;padding:0}.card{border:1.5px solid #e5e5e5;border-radius:8px;padding:7px 8px;background:#fafaf9;margin-bottom:6px}.ch{display:flex;align-items:center;gap:5px;margin-bottom:5px}.nb{width:20px;height:20px;border-radius:50%;background:#E8652D;color:#fff;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;flex-shrink:0}.ci{font-size:8px;font-weight:700;color:#444;line-height:1.3}.cs{color:#aaa;font-weight:500}.qi{width:100%;display:block;border-radius:4px;margin-bottom:3px}.lw{margin-top:3px}.ll{font-size:6px;color:#aaa;font-weight:600;margin-bottom:1px}.sd{border-top:1.5px dashed #f59e0b;margin-top:5px;padding-top:5px}.sl{font-size:6px;color:#f59e0b;font-weight:700;margin-bottom:2px}.ft{margin-top:8px;padding-top:5px;border-top:1px solid #eee;display:flex;justify-content:space-between;font-size:6px;color:#ccc}@media print{@page{margin:0;size:A4}body{-webkit-print-color-adjust:exact;print-color-adjust:exact}.pg{padding:10mm 7mm 12mm 7mm}.card{break-inside:avoid}.qi{break-inside:avoid}}';
+      const css=`*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:Outfit,sans-serif;background:#fff}
+.pg{padding:10mm 7mm 10mm 7mm;width:210mm;height:297mm;margin:0 auto;display:flex;flex-direction:column}
+.pb{page-break-after:always}
+.hd{display:flex;align-items:center;gap:8px;padding-bottom:6px;border-bottom:2.5px solid #E8652D;flex-shrink:0}
+.lg{width:24px;height:24px;border-radius:6px}
+.ht{flex:1}.h1{font-size:7px;color:#aaa;font-weight:600;letter-spacing:1.5px}.h2{font-size:11px;font-weight:800;color:#1a1a1a}
+.hr{text-align:right;font-size:7px;color:#aaa;line-height:1.5}.pn{font-weight:700;color:#555}
+.gr{width:100%;border-collapse:separate;border-spacing:5px 5px;table-layout:fixed;flex:1}
+.row{height:50%}
+.cl{width:50%;vertical-align:top;padding:0;height:50%}
+.card{border:1.5px solid #e0e0e0;border-radius:8px;padding:6px 7px;background:#fafaf9;height:100%;display:flex;flex-direction:column}
+.ch{display:flex;align-items:center;gap:5px;margin-bottom:4px;flex-shrink:0}
+.nb{width:20px;height:20px;border-radius:50%;background:#E8652D;color:#fff;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;flex-shrink:0}
+.ci{font-size:8px;font-weight:700;color:#444;line-height:1.3}.cs{color:#aaa;font-weight:500}
+.qi{width:100%;display:block;border-radius:4px;margin-bottom:2px;flex-shrink:0}
+.sd{border-top:1.5px dashed #f59e0b;margin-top:4px;padding-top:4px;flex-shrink:0}
+.sl{font-size:6px;color:#f59e0b;font-weight:700;margin-bottom:2px}
+.lw{flex:1;display:flex;flex-direction:column;margin-top:3px;min-height:0}
+.ll{font-size:6px;color:#aaa;font-weight:600;margin-bottom:1px;flex-shrink:0}
+.lines{flex:1;background:repeating-linear-gradient(to bottom,transparent,transparent 19px,#ddd 19px,#ddd 20px)}
+.ft{padding-top:4px;border-top:1px solid #eee;display:flex;justify-content:space-between;font-size:6px;color:#ccc;flex-shrink:0}
+@media print{
+  @page{margin:0;size:A4}
+  body{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .pg{padding:8mm 6mm 8mm 6mm}
+}`;
       let iframe=document.getElementById("pf");
       if(iframe)iframe.remove();
       iframe=document.createElement("iframe");
