@@ -65,6 +65,7 @@ function Main({user,onLogout}){
   const[markers,setMarkers]=useState([]);
   const[showPv,setShowPv]=useState(false);
   const[pvSlices,setPvSlices]=useState([]);
+  const[solPage,setSolPage]=useState("");
   const[newSN,setNewSN]=useState("");
   const[selStu,setSelStu]=useState("");
   const[stuSearch,setStuSearch]=useState("");
@@ -123,12 +124,15 @@ function Main({user,onLogout}){
 
   const genPv=async()=>{if(!workImg||!markers.length)return;const img=new Image();img.src=workImg;await new Promise(r=>{img.onload=r});const sl=[];const so=[...markers].sort((a,b)=>a.y-b.y);for(let i=0;i<so.length;i++){const ys=so[i].y,ye=i<so.length-1?so[i+1].y:1;const cv=document.createElement("canvas");const sy=Math.round(ys*img.height),sh=Math.round((ye-ys)*img.height);if(sh<5)continue;cv.width=img.width;cv.height=sh;cv.getContext("2d").drawImage(img,0,sy,img.width,sh,0,0,img.width,sh);sl.push({num:so[i].num,dataUrl:cv.toDataURL("image/jpeg",0.75)});cv.width=0;cv.height=0}setPvSlices(sl);setShowPv(true)};
 
-  const saveSl=async()=>{if(!pvSlices.length)return;setSaving(true);const isQ=pdfLbl==="question";let up=[...problems];let newCnt=0,upCnt=0;for(const sl of pvSlices){
-    // 문제: page_num+num으로 매칭, 해설: num만으로 매칭 (해설지 페이지≠문제집 페이지)
-    const ex=isQ
-      ?up.find(p=>p.book_id===selBook&&String(p.page_num)===String(pgNum)&&String(p.num)===String(sl.num))
-      :up.find(p=>p.book_id===selBook&&String(p.num)===String(sl.num));
-    const blob=await(await fetch(sl.dataUrl)).blob();const path=selBook+"/"+pgNum+"_"+sl.num+"_"+(isQ?"q":"s")+"_"+uid()+".jpg";const{error:ue}=await sb.storage.from("qbank-images").upload(path,blob,{contentType:"image/jpeg",upsert:true});if(ue){console.error("Upload:",ue);setErrMsg("업로드 오류: "+ue.message);continue}const{data:ud}=sb.storage.from("qbank-images").getPublicUrl(path);const pu=ud?.publicUrl||"";if(ex){const upd=isQ?{question_url:pu}:{solution_url:pu};await sb.from("problems").update(upd).eq("id",ex.id);if(isQ)ex.question_url=pu;else ex.solution_url=pu;upCnt++}else{const id=uid();const row={id,book_id:selBook,page_num:String(pgNum),num:String(sl.num),question_url:isQ?pu:"",solution_url:isQ?"":pu};await sb.from("problems").insert(row);up.push(row);newCnt++}}setProblems(up);setMarkers([]);setShowPv(false);setPvSlices([]);if(is2&&side==="left")extSide("right");setErrMsg("");setSaving(false);alert((newCnt?"신규 "+newCnt+"개 ":"")+(upCnt?"수정 "+upCnt+"개 ":"")+"저장 완료!")};
+  const[autoSave,setAutoSave]=useState(false);
+  const saveSl=async()=>{if(!pvSlices.length)return;const isQ=pdfLbl==="question";
+    const tgtPage=isQ?String(pgNum):solPage;
+    if(!isQ&&!tgtPage){alert("해설의 대상 쪽수를 입력하세요");return}
+    setSaving(true);let up=[...problems];let newCnt=0,upCnt=0;for(const sl of pvSlices){
+    const ex=up.find(p=>p.book_id===selBook&&String(p.page_num)===String(tgtPage)&&String(p.num)===String(sl.num));
+    const blob=await(await fetch(sl.dataUrl)).blob();const path=selBook+"/"+tgtPage+"_"+sl.num+"_"+(isQ?"q":"s")+"_"+uid()+".jpg";const{error:ue}=await sb.storage.from("qbank-images").upload(path,blob,{contentType:"image/jpeg",upsert:true});if(ue){console.error("Upload:",ue);setErrMsg("업로드 오류: "+ue.message);continue}const{data:ud}=sb.storage.from("qbank-images").getPublicUrl(path);const pu=ud?.publicUrl||"";if(ex){const upd=isQ?{question_url:pu}:{solution_url:pu};await sb.from("problems").update(upd).eq("id",ex.id);if(isQ)ex.question_url=pu;else ex.solution_url=pu;upCnt++}else{const id=uid();const row={id,book_id:selBook,page_num:String(tgtPage),num:String(sl.num),question_url:isQ?pu:"",solution_url:isQ?"":pu};await sb.from("problems").insert(row);up.push(row);newCnt++}}setProblems(up);setMarkers([]);setShowPv(false);setPvSlices([]);if(is2&&side==="left")extSide("right");setErrMsg("");setSaving(false);alert((newCnt?"신규 "+newCnt+"개 ":"")+(upCnt?"수정 "+upCnt+"개 ":"")+"저장 완료!")};
+  const quickSaveGo=async()=>{if(!workImg||!markers.length)return;setAutoSave(true);await genPv()};
+  useEffect(()=>{if(autoSave&&showPv&&pvSlices.length){setAutoSave(false);saveSl()}},[autoSave,showPv,pvSlices]);
 
   const delProb=async id=>{setProblems(p=>p.filter(x=>x.id!==id));await sb.from("problems").delete().eq("id",id)};
   // 해설만 있는 항목을 문제에 병합
@@ -414,7 +418,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#2
           {pgImg&&is2&&!showPv&&<div style={{marginBottom:8,position:"relative",borderRadius:8,overflow:"hidden",border:"1px solid #ddd",opacity:0.5}}><img src={pgImg} style={{width:"100%",display:"block"}}/><div style={{position:"absolute",top:0,left:side==="left"?"0":"50%",width:"50%",height:"100%",border:"2px solid #E8652D",boxSizing:"border-box"}}/><div style={{position:"absolute",top:0,left:side==="left"?"50%":"0",width:"50%",height:"100%",background:"rgba(0,0,0,0.3)"}}/></div>}
           {workImg&&!showPv&&<>
             <div style={{fontSize:12,color:"#888",marginBottom:6}}>👆 문제 시작점을 터치하세요{is2&&<span style={{color:"#d97706"}}> ({side==="left"?"왼쪽":"오른쪽"})</span>}</div>
-            {markers.length>0&&<div style={{marginBottom:8}}>
+            {/* 이미지 (터치 영역) */}
+            <div style={{position:"relative",borderRadius:8,overflow:"hidden",border:"2px solid "+(pdfLbl==="question"?"#059669":"#d97706"),marginBottom:8}} onClick={onTap}><img ref={imgRef} src={workImg} style={{width:"100%",display:"block",pointerEvents:"none"}}/>{markers.map((m,i)=><div key={i} style={{position:"absolute",left:0,top:m.y*100+"%",width:"100%",borderTop:"2px dashed #ef4444",pointerEvents:"none"}}><span style={{fontSize:9,fontWeight:800,color:"#fff",background:"#ef4444",padding:"1px 5px",borderRadius:"0 0 4px 0"}}>{m.num}▼</span></div>)}</div>
+            {/* 마커 편집 (이미지 아래) */}
+            {markers.length>0&&<div>
               {markers.map((m,i)=><div key={i} style={{display:"flex",alignItems:"center",gap:4,marginBottom:2,padding:"3px 6px",background:"#f9f9f9",borderRadius:6,fontSize:12}}>
                 <input value={m.num} onChange={e=>updMk(i,e.target.value)} style={{width:40,padding:"2px 4px",border:"1px solid #ddd",borderRadius:4,fontSize:11,fontWeight:600,textAlign:"center",outline:"none"}}/>
                 <span style={{color:"#aaa",fontSize:10}}>번</span>
@@ -422,19 +429,30 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#2
                 <button onClick={()=>mvMk(i,0.015)} style={{fontSize:9,padding:"1px 4px",border:"1px solid #ddd",borderRadius:3,background:"#fff",cursor:"pointer"}}>▼</button>
                 <span style={{flex:1}}/><button onClick={()=>rmMk(i)} style={{fontSize:11,background:"none",border:"none",color:"#ccc",cursor:"pointer"}}>✕</button>
               </div>)}
-              <div style={{display:"flex",gap:4,marginTop:4}}>
-                <button onClick={genPv} style={{flex:1,padding:"8px 0",borderRadius:8,border:"none",background:"#059669",color:"#fff",fontWeight:700,fontSize:12,cursor:"pointer",fontFamily:"inherit"}}>✂️ 미리보기 ({markers.length})</button>
-                <button onClick={()=>{setMarkers([]);setShowPv(false)}} style={{padding:"8px 12px",borderRadius:8,border:"1px solid #ddd",background:"#fff",fontSize:12,cursor:"pointer",fontFamily:"inherit"}}>초기화</button>
+              {/* 해설 대상 쪽수 */}
+              {pdfLbl==="solution"&&<div style={{display:"flex",alignItems:"center",gap:6,padding:"6px 8px",margin:"6px 0",background:"#fffbeb",borderRadius:6,border:"1px solid #fde68a"}}>
+                <span style={{fontSize:11,fontWeight:700,color:"#d97706",whiteSpace:"nowrap"}}>📙 대상 쪽수</span>
+                <input value={solPage} onChange={e=>setSolPage(e.target.value)} placeholder="문제집 쪽수 입력" style={{flex:1,padding:"4px 8px",border:"1px solid #fde68a",borderRadius:4,fontSize:12,fontWeight:600,outline:"none",textAlign:"center"}}/>
+              </div>}
+              {/* 버튼들 */}
+              <div style={{display:"flex",gap:4,marginTop:6}}>
+                <button onClick={genPv} style={{flex:1,padding:"8px 0",borderRadius:8,border:"1px solid #ddd",background:"#fff",fontWeight:700,fontSize:12,cursor:"pointer",fontFamily:"inherit",color:"#555"}}>✂️ 미리보기</button>
+                <button onClick={quickSaveGo} disabled={saving} style={{flex:2,padding:"8px 0",borderRadius:8,border:"none",background:"#059669",color:"#fff",fontWeight:700,fontSize:12,cursor:"pointer",fontFamily:"inherit",opacity:saving?0.6:1}}>{saving?"저장 중...":"⚡ 바로 저장 ("+markers.length+"개)"}</button>
+                <button onClick={()=>{setMarkers([]);setShowPv(false)}} style={{padding:"8px 10px",borderRadius:8,border:"1px solid #ddd",background:"#fff",fontSize:11,cursor:"pointer",fontFamily:"inherit",color:"#aaa"}}>초기화</button>
               </div>
             </div>}
-            <div style={{position:"relative",borderRadius:8,overflow:"hidden",border:"2px solid "+(pdfLbl==="question"?"#059669":"#d97706")}} onClick={onTap}><img ref={imgRef} src={workImg} style={{width:"100%",display:"block",pointerEvents:"none"}}/>{markers.map((m,i)=><div key={i} style={{position:"absolute",left:0,top:m.y*100+"%",width:"100%",borderTop:"2px dashed #ef4444",pointerEvents:"none"}}><span style={{fontSize:9,fontWeight:800,color:"#fff",background:"#ef4444",padding:"1px 5px",borderRadius:"0 0 4px 0"}}>{m.num}▼</span></div>)}</div>
           </>}
           {showPv&&pvSlices.length>0&&<div>
             <div style={{fontSize:12,fontWeight:700,color:"#555",marginBottom:6}}>✂️ {pvSlices.length}개 미리보기</div>
             {pvSlices.map((s,i)=><div key={i} style={{marginBottom:6,border:"1px solid #eee",borderRadius:8,overflow:"hidden"}}>
-              <div style={{padding:"4px 8px",background:"#f9f9f9",fontSize:11,fontWeight:700,color:"#555",display:"flex",alignItems:"center",gap:4}}><input value={s.num} onChange={e=>{const u=[...pvSlices];u[i]={...u[i],num:e.target.value};setPvSlices(u)}} style={{width:40,padding:"2px 4px",border:"1px solid #ddd",borderRadius:4,fontSize:11,fontWeight:600,textAlign:"center",outline:"none"}}/>번</div>
               <img src={s.dataUrl} style={{width:"100%",display:"block"}}/>
+              <div style={{padding:"4px 8px",background:"#f9f9f9",fontSize:11,fontWeight:700,color:"#555",display:"flex",alignItems:"center",gap:4}}><input value={s.num} onChange={e=>{const u=[...pvSlices];u[i]={...u[i],num:e.target.value};setPvSlices(u)}} style={{width:40,padding:"2px 4px",border:"1px solid #ddd",borderRadius:4,fontSize:11,fontWeight:600,textAlign:"center",outline:"none"}}/>번</div>
             </div>)}
+            {/* 해설 대상 쪽수 (미리보기에서도 표시) */}
+            {pdfLbl==="solution"&&<div style={{display:"flex",alignItems:"center",gap:6,padding:"6px 8px",marginBottom:6,background:"#fffbeb",borderRadius:6,border:"1px solid #fde68a"}}>
+              <span style={{fontSize:11,fontWeight:700,color:"#d97706",whiteSpace:"nowrap"}}>📙 대상 쪽수</span>
+              <input value={solPage} onChange={e=>setSolPage(e.target.value)} placeholder="문제집 쪽수" style={{flex:1,padding:"4px 8px",border:"1px solid #fde68a",borderRadius:4,fontSize:12,fontWeight:600,outline:"none",textAlign:"center"}}/>
+            </div>}
             <div style={{display:"flex",gap:4,marginTop:6}}>
               <button onClick={()=>setShowPv(false)} style={{flex:1,padding:"9px 0",borderRadius:8,border:"1px solid #ddd",background:"#fff",fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>← 다시</button>
               <button onClick={saveSl} disabled={saving} style={{flex:2,padding:"9px 0",borderRadius:8,border:"none",background:"#059669",color:"#fff",fontWeight:700,fontSize:13,cursor:"pointer",fontFamily:"inherit",opacity:saving?0.6:1}}>{saving?"저장 중...":"✅ "+pvSlices.length+"개 저장"}</button>
