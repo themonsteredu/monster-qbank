@@ -125,11 +125,15 @@ function Main({user,onLogout}){
   const updMk=(i,n)=>{const u=[...markers];u[i]={...u[i],num:n};setMarkers(u)};
   const mvMk=(i,d)=>{const u=[...markers];u[i]={...u[i],y:Math.max(0.01,Math.min(0.99,u[i].y+d))};setMarkers(u.sort((a,b)=>a.y-b.y));setShowPv(false)};
 
-  // 네모 드래그
-  const getRelPos=(e,el)=>{const r=el.getBoundingClientRect();const t=e.touches?e.touches[0]:e;return{x:Math.max(0,Math.min(1,(t.clientX-r.left)/r.width)),y:Math.max(0,Math.min(1,(t.clientY-r.top)/r.height))}};
-  const onBoxDown=e=>{if(!imgRef.current)return;e.preventDefault();const p=getRelPos(e,imgRef.current);setDragging({sx:p.x,sy:p.y,cx:p.x,cy:p.y})};
-  const onBoxMove=e=>{if(!dragging||!imgRef.current)return;e.preventDefault();const p=getRelPos(e,imgRef.current);setDragging(d=>({...d,cx:p.x,cy:p.y}))};
-  const onBoxEnd=e=>{if(!dragging)return;const{sx,sy,cx,cy}=dragging;setDragging(null);const x=Math.min(sx,cx),y=Math.min(sy,cy),w=Math.abs(cx-sx),h=Math.abs(cy-sy);if(w<0.03||h<0.03)return;const allNums=[...pgProbs.map(p=>p.num),...boxes.map(b=>b.num)];let nx="1";if(allNums.length)nx=String(Math.max(...allNums.map(n=>parseInt(n)||0))+1);setBoxes(b=>[...b,{x,y,w,h,num:nx}]);setShowPv(false)};
+  // 네모 드래그 (useRef로 실시간 추적)
+  const dragRef=useRef(null);
+  const getRelPos=(e,el)=>{const r=el.getBoundingClientRect();const t=e.touches?e.touches[0]:(e.changedTouches?e.changedTouches[0]:e);if(!t)return null;return{x:Math.max(0,Math.min(1,(t.clientX-r.left)/r.width)),y:Math.max(0,Math.min(1,(t.clientY-r.top)/r.height))}};
+  const onBoxStart=e=>{if(!imgRef.current||cropMode!=="box")return;e.preventDefault();e.stopPropagation();const p=getRelPos(e,imgRef.current);if(!p)return;dragRef.current={sx:p.x,sy:p.y};setDragging({sx:p.x,sy:p.y,cx:p.x,cy:p.y});
+    const onMove=ev=>{ev.preventDefault();if(!dragRef.current||!imgRef.current)return;const pp=getRelPos(ev,imgRef.current);if(!pp)return;setDragging({...dragRef.current,cx:pp.x,cy:pp.y})};
+    const onEnd=ev=>{if(!dragRef.current||!imgRef.current){cleanup();return}const pp=getRelPos(ev,imgRef.current);if(!pp){cleanup();return}const{sx,sy}=dragRef.current;const cx=pp.x,cy=pp.y;const x=Math.min(sx,cx),y=Math.min(sy,cy),w=Math.abs(cx-sx),h=Math.abs(cy-sy);dragRef.current=null;setDragging(null);if(w<0.02||h<0.02){cleanup();return}const allNums=[...pgProbs.map(p=>p.num),...boxes.map(b=>b.num)];let nx="1";if(allNums.length)nx=String(Math.max(...allNums.map(n=>parseInt(n)||0))+1);setBoxes(b=>[...b,{x,y,w,h,num:nx}]);setShowPv(false);cleanup()};
+    const cleanup=()=>{document.removeEventListener("mousemove",onMove);document.removeEventListener("mouseup",onEnd);document.removeEventListener("touchmove",onMove,{passive:false});document.removeEventListener("touchend",onEnd)};
+    document.addEventListener("mousemove",onMove);document.addEventListener("mouseup",onEnd);document.addEventListener("touchmove",onMove,{passive:false});document.addEventListener("touchend",onEnd);
+  };
   const rmBox=i=>{setBoxes(boxes.filter((_,j)=>j!==i));setShowPv(false)};
   const updBox=(i,n)=>{const u=[...boxes];u[i]={...u[i],num:n};setBoxes(u)};
 
@@ -422,7 +426,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#2
           </div>
           <div style={{display:"flex",gap:4,marginBottom:10}}>
             <button onClick={()=>goPg(-1)} style={{padding:"6px 12px",borderRadius:8,border:"1px solid #ddd",background:"#fff",fontSize:14,cursor:"pointer"}}>◀</button>
-            <Input value={pgNum} onChange={e=>setPgNum(e.target.value)} onKeyDown={e=>e.key==="Enter"&&goTo(parseInt(pgNum))} placeholder="쪽" style={{flex:1,textAlign:"center",fontSize:15,fontWeight:700,padding:"6px 10px"}}/>
+            <Input value={pgNum} onChange={e=>setPgNum(e.target.value)} inputMode="numeric" onKeyDown={e=>{if(e.key==="Enter"&&!e.nativeEvent.isComposing)goTo(parseInt(pgNum))}} placeholder="쪽" style={{flex:1,textAlign:"center",fontSize:15,fontWeight:700,padding:"6px 10px"}}/>
             <button onClick={()=>goPg(1)} style={{padding:"6px 12px",borderRadius:8,border:"1px solid #ddd",background:"#fff",fontSize:14,cursor:"pointer"}}>▶</button>
             <button onClick={()=>goTo(parseInt(pgNum))} style={{padding:"6px 14px",borderRadius:8,border:"none",background:"#E8652D",color:"#fff",fontWeight:700,fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>이동</button>
           </div>
@@ -438,7 +442,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#2
             <div style={{fontSize:11,color:"#888",marginBottom:4}}>{cropMode==="box"?"👆 네모로 드래그하세요":"👆 문제 시작점을 터치하세요"}{is2&&<span style={{color:"#d97706"}}> ({side==="left"?"왼쪽":"오른쪽"})</span>}</div>
             {/* 이미지 */}
             <div style={{position:"relative",borderRadius:8,overflow:"hidden",border:"2px solid "+(pdfLbl==="question"?"#059669":"#d97706"),marginBottom:8,touchAction:"none",userSelect:"none"}}
-              {...(cropMode==="box"?{onMouseDown:onBoxDown,onMouseMove:onBoxMove,onMouseUp:onBoxEnd,onTouchStart:onBoxDown,onTouchMove:onBoxMove,onTouchEnd:onBoxEnd}:{onClick:onTap})}>
+              onMouseDown={cropMode==="box"?onBoxStart:undefined}
+              onTouchStart={cropMode==="box"?onBoxStart:undefined}
+              onClick={cropMode==="line"?onTap:undefined}>
               <img ref={imgRef} src={workImg} style={{width:"100%",display:"block",pointerEvents:"none",userSelect:"none"}}/>
               {/* 줄 모드 마커 */}
               {cropMode==="line"&&markers.map((m,i)=><div key={"m"+i} style={{position:"absolute",left:0,top:m.y*100+"%",width:"100%",borderTop:"2px dashed #ef4444",pointerEvents:"none"}}><span style={{fontSize:9,fontWeight:800,color:"#fff",background:"#ef4444",padding:"1px 5px",borderRadius:"0 0 4px 0"}}>{m.num}▼</span></div>)}
@@ -471,7 +477,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#2
             {(cropMode==="line"?markers.length:boxes.length)>0&&<div>
               {pdfLbl==="solution"&&<div style={{display:"flex",alignItems:"center",gap:6,padding:"6px 8px",margin:"6px 0",background:"#fffbeb",borderRadius:6,border:"1px solid #fde68a"}}>
                 <span style={{fontSize:11,fontWeight:700,color:"#d97706",whiteSpace:"nowrap"}}>📙 대상 쪽수</span>
-                <input value={solPage} onChange={e=>setSolPage(e.target.value)} placeholder="문제집 쪽수 입력" style={{flex:1,padding:"4px 8px",border:"1px solid #fde68a",borderRadius:4,fontSize:12,fontWeight:600,outline:"none",textAlign:"center"}}/>
+                <input value={solPage} onChange={e=>setSolPage(e.target.value)} inputMode="numeric" placeholder="문제집 쪽수 입력" style={{flex:1,padding:"4px 8px",border:"1px solid #fde68a",borderRadius:4,fontSize:12,fontWeight:600,outline:"none",textAlign:"center"}}/>
               </div>}
               <div style={{display:"flex",gap:4,marginTop:6}}>
                 <button onClick={cropMode==="box"?genBoxPv:genPv} style={{flex:1,padding:"8px 0",borderRadius:8,border:"1px solid #ddd",background:"#fff",fontWeight:700,fontSize:12,cursor:"pointer",fontFamily:"inherit",color:"#555"}}>✂️ 미리보기</button>
@@ -489,7 +495,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#2
             {/* 해설 대상 쪽수 (미리보기에서도 표시) */}
             {pdfLbl==="solution"&&<div style={{display:"flex",alignItems:"center",gap:6,padding:"6px 8px",marginBottom:6,background:"#fffbeb",borderRadius:6,border:"1px solid #fde68a"}}>
               <span style={{fontSize:11,fontWeight:700,color:"#d97706",whiteSpace:"nowrap"}}>📙 대상 쪽수</span>
-              <input value={solPage} onChange={e=>setSolPage(e.target.value)} placeholder="문제집 쪽수" style={{flex:1,padding:"4px 8px",border:"1px solid #fde68a",borderRadius:4,fontSize:12,fontWeight:600,outline:"none",textAlign:"center"}}/>
+              <input value={solPage} onChange={e=>setSolPage(e.target.value)} inputMode="numeric" placeholder="문제집 쪽수" style={{flex:1,padding:"4px 8px",border:"1px solid #fde68a",borderRadius:4,fontSize:12,fontWeight:600,outline:"none",textAlign:"center"}}/>
             </div>}
             <div style={{display:"flex",gap:4,marginTop:6}}>
               <button onClick={()=>setShowPv(false)} style={{flex:1,padding:"9px 0",borderRadius:8,border:"1px solid #ddd",background:"#fff",fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>← 다시</button>
