@@ -152,6 +152,9 @@ function Main({user,onLogout}){
   useEffect(()=>{if(autoSave&&showPv&&pvSlices.length){setAutoSave(false);saveSl()}},[autoSave,showPv,pvSlices]);
 
   const delProb=async id=>{setProblems(p=>p.filter(x=>x.id!==id));await sb.from("problems").delete().eq("id",id)};
+  const delSol=async id=>{setProblems(p=>p.map(x=>x.id===id?{...x,solution_url:""}:x));await sb.from("problems").update({solution_url:""}).eq("id",id)};
+  const delQst=async id=>{const prob=problems.find(p=>p.id===id);if(prob?.solution_url){setProblems(p=>p.map(x=>x.id===id?{...x,question_url:""}:x));await sb.from("problems").update({question_url:""}).eq("id",id)}else{await delProb(id)}};
+  const[pvProb,setPvProb]=useState(null);
   // 해설만 있는 항목을 문제에 병합
   const mergeOrphans=async(bookId)=>{
     const bkPs=problems.filter(p=>p.book_id===bookId);
@@ -384,13 +387,40 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#2
               {/* 문제 목록 (접기/펼치기) */}
               {qPgs.length>0&&<div style={{background:"#fff",borderRadius:8,border:"1px solid #eee",overflow:"hidden",marginBottom:6}}>
                 <button onClick={()=>setAExpPage(aExpPage==="probList"?"":"probList")} style={{width:"100%",padding:"6px 10px",background:"#f0fdf4",borderBottom:"1px solid #eee",border:"none",fontSize:11,fontWeight:700,color:"#059669",display:"flex",justifyContent:"space-between",cursor:"pointer",fontFamily:"inherit"}}><span>📗 문제 ({withQ.length}개 · {qPgs.length}페이지)</span><span style={{color:"#aaa"}}>{aExpPage==="probList"?"▼":"▶"}</span></button>
-                {aExpPage==="probList"&&qPgs.map(pg=>{
-                  const pgPs=withQ.filter(p=>p.page_num===pg).sort((a,b)=>(parseFloat(a.num)||0)-(parseFloat(b.num)||0));
-                  return<div key={pg} style={{padding:"5px 10px",borderBottom:"1px solid #f5f5f5",display:"flex",alignItems:"center",gap:4,flexWrap:"wrap"}}>
-                    <span style={{fontSize:11,fontWeight:700,color:"#E8652D",minWidth:32}}>{pg}p</span>
-                    {pgPs.map(p=><span key={p.id} onClick={()=>{if(confirm(p.num+"번 삭제?"))delProb(p.id)}} style={{fontSize:10,padding:"1px 6px",borderRadius:4,background:p.solution_url?"#dcfce7":"#fff",border:"1px solid "+(p.solution_url?"#bbf7d0":"#ddd"),color:p.solution_url?"#059669":"#888",cursor:"pointer"}}>{p.num}{p.solution_url?"✅":""}</span>)}
-                  </div>;
-                })}
+                {aExpPage==="probList"&&<div>
+                  {qPgs.map(pg=>{
+                    const pgPs=withQ.filter(p=>p.page_num===pg).sort((a,b)=>(parseFloat(a.num)||0)-(parseFloat(b.num)||0));
+                    return<div key={pg} style={{padding:"5px 10px",borderBottom:"1px solid #f5f5f5"}}>
+                      <div style={{display:"flex",alignItems:"center",gap:4,flexWrap:"wrap"}}>
+                        <span style={{fontSize:11,fontWeight:700,color:"#E8652D",minWidth:32}}>{pg}p</span>
+                        {pgPs.map(p=><span key={p.id} onClick={()=>setPvProb(pvProb===p.id?null:p.id)} style={{fontSize:10,padding:"1px 6px",borderRadius:4,background:pvProb===p.id?"#E8652D":p.solution_url?"#dcfce7":"#fff",border:"1px solid "+(pvProb===p.id?"#E8652D":p.solution_url?"#bbf7d0":"#ddd"),color:pvProb===p.id?"#fff":p.solution_url?"#059669":"#888",cursor:"pointer"}}>{p.num}{p.solution_url?"✅":""}</span>)}
+                      </div>
+                      {/* 선택된 문제 미리보기 */}
+                      {pgPs.filter(p=>pvProb===p.id).map(p=>
+                        <div key={"pv_"+p.id} style={{margin:"6px 0 2px",padding:8,border:"1px solid #eee",borderRadius:8,background:"#fafafa"}}>
+                          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
+                            <span style={{fontSize:11,fontWeight:700,color:"#333"}}>{pg}p {p.num}번</span>
+                            <button onClick={()=>{if(confirm(p.num+"번 전체 삭제?"))delProb(p.id);setPvProb(null)}} style={{fontSize:9,padding:"2px 8px",borderRadius:4,border:"1px solid #fecaca",background:"#fff",color:"#ef4444",cursor:"pointer",fontFamily:"inherit"}}>전체삭제</button>
+                          </div>
+                          {p.question_url&&<div style={{marginBottom:6}}>
+                            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:3}}>
+                              <span style={{fontSize:10,fontWeight:600,color:"#059669"}}>📗 문제</span>
+                              <button onClick={()=>{if(confirm("문제 이미지만 삭제?"))delQst(p.id)}} style={{fontSize:9,padding:"1px 6px",borderRadius:3,border:"1px solid #ddd",background:"#fff",color:"#888",cursor:"pointer",fontFamily:"inherit"}}>삭제</button>
+                            </div>
+                            <img src={p.question_url} style={{width:"100%",borderRadius:6,border:"1px solid #eee"}}/>
+                          </div>}
+                          {p.solution_url?<div>
+                            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:3}}>
+                              <span style={{fontSize:10,fontWeight:600,color:"#d97706"}}>📙 해설</span>
+                              <button onClick={()=>{if(confirm("해설 이미지만 삭제?"))delSol(p.id)}} style={{fontSize:9,padding:"1px 6px",borderRadius:3,border:"1px solid #fde68a",background:"#fff",color:"#d97706",cursor:"pointer",fontFamily:"inherit"}}>삭제</button>
+                            </div>
+                            <img src={p.solution_url} style={{width:"100%",borderRadius:6,border:"1px solid #fde68a"}}/>
+                          </div>:<div style={{padding:8,textAlign:"center",color:"#ccc",fontSize:10,border:"1px dashed #ddd",borderRadius:6}}>해설 미등록</div>}
+                        </div>
+                      )}
+                    </div>;
+                  })}
+                </div>}
               </div>}
               {/* 해설만 있는 항목 (문제 미매칭) */}
               {onlyS.length>0&&<div style={{background:"#fff",borderRadius:8,border:"1px solid #fde68a",overflow:"hidden",marginBottom:6}}>
@@ -401,8 +431,18 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#2
                     <span style={{color:"#aaa",fontSize:10}}>{aExpPage==="orphans"?"▼":"▶"}</span>
                   </div>
                 </button>
-                {aExpPage==="orphans"&&<div style={{padding:"5px 10px",display:"flex",gap:4,flexWrap:"wrap"}}>
-                  {onlyS.sort((a,b)=>(parseInt(a.page_num)||0)-(parseInt(b.page_num)||0)||(parseFloat(a.num)||0)-(parseFloat(b.num)||0)).map(p=><span key={p.id} style={{fontSize:10,padding:"1px 6px",borderRadius:4,background:"#fffbeb",border:"1px solid #fde68a",color:"#d97706"}}>{p.page_num}p {p.num}번</span>)}
+                {aExpPage==="orphans"&&<div style={{padding:"5px 10px"}}>
+                  {onlyS.sort((a,b)=>(parseInt(a.page_num)||0)-(parseInt(b.page_num)||0)||(parseFloat(a.num)||0)-(parseFloat(b.num)||0)).map(p=>
+                    <div key={p.id} style={{marginBottom:4}}>
+                      <div style={{display:"flex",alignItems:"center",gap:4}}>
+                        <span onClick={()=>setPvProb(pvProb===p.id?null:p.id)} style={{fontSize:10,padding:"1px 6px",borderRadius:4,background:pvProb===p.id?"#d97706":"#fffbeb",border:"1px solid #fde68a",color:pvProb===p.id?"#fff":"#d97706",cursor:"pointer"}}>{p.page_num}p {p.num}번</span>
+                        <button onClick={()=>{if(confirm(p.page_num+"p "+p.num+"번 해설 삭제?"))delProb(p.id)}} style={{fontSize:9,padding:"1px 6px",borderRadius:3,border:"1px solid #fecaca",background:"#fff",color:"#ef4444",cursor:"pointer",fontFamily:"inherit"}}>삭제</button>
+                      </div>
+                      {pvProb===p.id&&p.solution_url&&<div style={{margin:"4px 0",padding:4,border:"1px solid #fde68a",borderRadius:6,background:"#fffdf5"}}>
+                        <img src={p.solution_url} style={{width:"100%",borderRadius:4}}/>
+                      </div>}
+                    </div>
+                  )}
                 </div>}
               </div>}
             </div>;
@@ -505,10 +545,24 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#2
           {!rendering&&!pgImg&&<div style={{padding:20,textAlign:"center",color:"#ccc",background:"#fafafa",borderRadius:8,border:"1px dashed #ddd",fontSize:12}}>쪽번호 입력 → 이동</div>}
           {pgProbs.length>0&&<div style={{marginTop:8}}>
             <div style={{fontSize:11,fontWeight:700,color:"#555",marginBottom:3}}>{pgNum}쪽 · {pgProbs.length}문제</div>
-            {pgProbs.map(p=><div key={p.id} style={{display:"flex",alignItems:"center",gap:4,padding:"4px 8px",marginBottom:2,background:"#f9f9f9",borderRadius:6,fontSize:11}}>
-              <span style={{fontWeight:700,color:"#E8652D",minWidth:30}}>{p.num}번</span>
-              <span style={{color:"#aaa"}}>{p.question_url?"📗":""}{p.solution_url?"📙":""}{p.question_url&&p.solution_url?" ✅":!p.question_url&&!p.solution_url?" ⚠":""}</span>
-              <span style={{flex:1}}/><button onClick={()=>delProb(p.id)} style={{background:"none",border:"none",color:"#ddd",fontSize:12,cursor:"pointer"}}>×</button>
+            {pgProbs.map(p=><div key={p.id}>
+              <div style={{display:"flex",alignItems:"center",gap:4,padding:"4px 8px",marginBottom:1,background:pvProb===p.id?"#fff8f5":"#f9f9f9",borderRadius:6,fontSize:11,cursor:"pointer",border:pvProb===p.id?"1px solid #E8652D":"1px solid transparent"}} onClick={()=>setPvProb(pvProb===p.id?null:p.id)}>
+                <span style={{fontWeight:700,color:"#E8652D",minWidth:30}}>{p.num}번</span>
+                <span style={{color:"#aaa"}}>{p.question_url?"📗":""}{p.solution_url?"📙":""}{p.question_url&&p.solution_url?" ✅":""}</span>
+                <span style={{flex:1}}/>
+                <span style={{fontSize:10,color:"#bbb"}}>{pvProb===p.id?"▼":"▶"}</span>
+              </div>
+              {pvProb===p.id&&<div style={{margin:"2px 0 6px",padding:6,border:"1px solid #eee",borderRadius:6,background:"#fff"}}>
+                {p.question_url&&<div style={{marginBottom:4}}>
+                  <div style={{display:"flex",justifyContent:"space-between",marginBottom:2}}><span style={{fontSize:9,fontWeight:600,color:"#059669"}}>📗 문제</span><button onClick={e=>{e.stopPropagation();if(confirm("문제 삭제?"))delQst(p.id)}} style={{fontSize:9,padding:"0 4px",border:"1px solid #ddd",borderRadius:3,background:"#fff",color:"#888",cursor:"pointer",fontFamily:"inherit"}}>삭제</button></div>
+                  <img src={p.question_url} style={{width:"100%",borderRadius:4}}/>
+                </div>}
+                {p.solution_url&&<div>
+                  <div style={{display:"flex",justifyContent:"space-between",marginBottom:2}}><span style={{fontSize:9,fontWeight:600,color:"#d97706"}}>📙 해설</span><button onClick={e=>{e.stopPropagation();if(confirm("해설 삭제?"))delSol(p.id)}} style={{fontSize:9,padding:"0 4px",border:"1px solid #fde68a",borderRadius:3,background:"#fff",color:"#d97706",cursor:"pointer",fontFamily:"inherit"}}>삭제</button></div>
+                  <img src={p.solution_url} style={{width:"100%",borderRadius:4}}/>
+                </div>}
+                {!p.question_url&&!p.solution_url&&<div style={{padding:8,textAlign:"center",color:"#ccc",fontSize:10}}>이미지 없음</div>}
+              </div>}
             </div>)}
           </div>}
         </div>}
