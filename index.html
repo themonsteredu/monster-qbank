@@ -66,6 +66,9 @@ function Main({user,onLogout}){
   const[showPv,setShowPv]=useState(false);
   const[pvSlices,setPvSlices]=useState([]);
   const[solPage,setSolPage]=useState("");
+  const[cropMode,setCropMode]=useState("box");
+  const[boxes,setBoxes]=useState([]);
+  const[dragging,setDragging]=useState(null);
   const[newSN,setNewSN]=useState("");
   const[selStu,setSelStu]=useState("");
   const[stuSearch,setStuSearch]=useState("");
@@ -107,7 +110,7 @@ function Main({user,onLogout}){
 
   const loadPdf=async(e,lbl)=>{const f=e.target.files?.[0];if(!f)return;try{e.target.value=""}catch{}setErrMsg("");try{const ab=await f.arrayBuffer();const cp=ab.slice(0);const doc=await pdfjsLib.getDocument({data:cp.slice(0),cMapUrl:PDFJS_CDN+"/cmaps/",cMapPacked:true}).promise;const n=doc.numPages;doc.destroy();setPdfBuf(cp);setPdfPages(n);setPdfLbl(lbl);setPgImg(null);setPgNum("");resetCr()}catch(er){setErrMsg("PDF오류: "+er.message)}};
   const closePdf=()=>{setPdfBuf(null);setPdfPages(0);setPdfLbl("");setPgImg(null);setPgNum("");resetCr()};
-  const resetCr=()=>{setSide("left");setSideImg(null);setMarkers([]);setShowPv(false);setPvSlices([])};
+  const resetCr=()=>{setSide("left");setSideImg(null);setMarkers([]);setShowPv(false);setPvSlices([]);setBoxes([]);setDragging(null)};
 
   const renderPg=useCallback(async num=>{if(!pdfBuf)return;setRendering(true);setPgImg(null);setErrMsg("");resetCr();try{const doc=await pdfjsLib.getDocument({data:pdfBuf.slice(0),cMapUrl:PDFJS_CDN+"/cmaps/",cMapPacked:true}).promise;const pn=parseInt(num);if(pn<1||pn>doc.numPages){doc.destroy();setRendering(false);setErrMsg(num+"쪽 없음");return}const pg=await doc.getPage(pn);const vp=pg.getViewport({scale:1.5});const cv=document.createElement("canvas");cv.width=vp.width;cv.height=vp.height;await pg.render({canvasContext:cv.getContext("2d"),viewport:vp}).promise;const img=cv.toDataURL("image/jpeg",0.75);cv.width=0;cv.height=0;doc.destroy();setPgImg(img)}catch(er){setErrMsg("렌더링오류: "+er.message)}setRendering(false)},[pdfBuf]);
 
@@ -122,6 +125,16 @@ function Main({user,onLogout}){
   const updMk=(i,n)=>{const u=[...markers];u[i]={...u[i],num:n};setMarkers(u)};
   const mvMk=(i,d)=>{const u=[...markers];u[i]={...u[i],y:Math.max(0.01,Math.min(0.99,u[i].y+d))};setMarkers(u.sort((a,b)=>a.y-b.y));setShowPv(false)};
 
+  // 네모 드래그
+  const getRelPos=(e,el)=>{const r=el.getBoundingClientRect();const t=e.touches?e.touches[0]:e;return{x:Math.max(0,Math.min(1,(t.clientX-r.left)/r.width)),y:Math.max(0,Math.min(1,(t.clientY-r.top)/r.height))}};
+  const onBoxDown=e=>{if(!imgRef.current)return;e.preventDefault();const p=getRelPos(e,imgRef.current);setDragging({sx:p.x,sy:p.y,cx:p.x,cy:p.y})};
+  const onBoxMove=e=>{if(!dragging||!imgRef.current)return;e.preventDefault();const p=getRelPos(e,imgRef.current);setDragging(d=>({...d,cx:p.x,cy:p.y}))};
+  const onBoxEnd=e=>{if(!dragging)return;const{sx,sy,cx,cy}=dragging;setDragging(null);const x=Math.min(sx,cx),y=Math.min(sy,cy),w=Math.abs(cx-sx),h=Math.abs(cy-sy);if(w<0.03||h<0.03)return;const allNums=[...pgProbs.map(p=>p.num),...boxes.map(b=>b.num)];let nx="1";if(allNums.length)nx=String(Math.max(...allNums.map(n=>parseInt(n)||0))+1);setBoxes(b=>[...b,{x,y,w,h,num:nx}]);setShowPv(false)};
+  const rmBox=i=>{setBoxes(boxes.filter((_,j)=>j!==i));setShowPv(false)};
+  const updBox=(i,n)=>{const u=[...boxes];u[i]={...u[i],num:n};setBoxes(u)};
+
+  const genBoxPv=async()=>{if(!workImg||!boxes.length)return;const img=new Image();img.src=workImg;await new Promise(r=>{img.onload=r});const sl=[];for(const b of boxes){const sx=Math.round(b.x*img.width),sy=Math.round(b.y*img.height),sw=Math.round(b.w*img.width),sh=Math.round(b.h*img.height);if(sw<5||sh<5)continue;const cv=document.createElement("canvas");cv.width=sw;cv.height=sh;cv.getContext("2d").drawImage(img,sx,sy,sw,sh,0,0,sw,sh);sl.push({num:b.num,dataUrl:cv.toDataURL("image/jpeg",0.75)});cv.width=0;cv.height=0}setPvSlices(sl);setShowPv(true)};
+
   const genPv=async()=>{if(!workImg||!markers.length)return;const img=new Image();img.src=workImg;await new Promise(r=>{img.onload=r});const sl=[];const so=[...markers].sort((a,b)=>a.y-b.y);for(let i=0;i<so.length;i++){const ys=so[i].y,ye=i<so.length-1?so[i+1].y:1;const cv=document.createElement("canvas");const sy=Math.round(ys*img.height),sh=Math.round((ye-ys)*img.height);if(sh<5)continue;cv.width=img.width;cv.height=sh;cv.getContext("2d").drawImage(img,0,sy,img.width,sh,0,0,img.width,sh);sl.push({num:so[i].num,dataUrl:cv.toDataURL("image/jpeg",0.75)});cv.width=0;cv.height=0}setPvSlices(sl);setShowPv(true)};
 
   const[autoSave,setAutoSave]=useState(false);
@@ -131,7 +144,7 @@ function Main({user,onLogout}){
     setSaving(true);let up=[...problems];let newCnt=0,upCnt=0;for(const sl of pvSlices){
     const ex=up.find(p=>p.book_id===selBook&&String(p.page_num)===String(tgtPage)&&String(p.num)===String(sl.num));
     const blob=await(await fetch(sl.dataUrl)).blob();const path=selBook+"/"+tgtPage+"_"+sl.num+"_"+(isQ?"q":"s")+"_"+uid()+".jpg";const{error:ue}=await sb.storage.from("qbank-images").upload(path,blob,{contentType:"image/jpeg",upsert:true});if(ue){console.error("Upload:",ue);setErrMsg("업로드 오류: "+ue.message);continue}const{data:ud}=sb.storage.from("qbank-images").getPublicUrl(path);const pu=ud?.publicUrl||"";if(ex){const upd=isQ?{question_url:pu}:{solution_url:pu};await sb.from("problems").update(upd).eq("id",ex.id);if(isQ)ex.question_url=pu;else ex.solution_url=pu;upCnt++}else{const id=uid();const row={id,book_id:selBook,page_num:String(tgtPage),num:String(sl.num),question_url:isQ?pu:"",solution_url:isQ?"":pu};await sb.from("problems").insert(row);up.push(row);newCnt++}}setProblems(up);setMarkers([]);setShowPv(false);setPvSlices([]);if(is2&&side==="left")extSide("right");setErrMsg("");setSaving(false);alert((newCnt?"신규 "+newCnt+"개 ":"")+(upCnt?"수정 "+upCnt+"개 ":"")+"저장 완료!")};
-  const quickSaveGo=async()=>{if(!workImg||!markers.length)return;setAutoSave(true);await genPv()};
+  const quickSaveGo=async()=>{if(!workImg)return;if(cropMode==="box"&&!boxes.length)return;if(cropMode==="line"&&!markers.length)return;setAutoSave(true);if(cropMode==="box")await genBoxPv();else await genPv()};
   useEffect(()=>{if(autoSave&&showPv&&pvSlices.length){setAutoSave(false);saveSl()}},[autoSave,showPv,pvSlices]);
 
   const delProb=async id=>{setProblems(p=>p.filter(x=>x.id!==id));await sb.from("problems").delete().eq("id",id)};
@@ -417,11 +430,25 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#2
           {pgImg&&is2&&<div style={{display:"flex",marginBottom:8,borderRadius:8,overflow:"hidden",border:"1px solid #ddd"}}>{["left","right"].map(s=><button key={s} onClick={()=>extSide(s)} style={{flex:1,padding:"8px 0",border:"none",fontSize:12,fontWeight:700,cursor:"pointer",background:side===s?"#E8652D":"#fff",color:side===s?"#fff":"#999",fontFamily:"inherit"}}>{s==="left"?"⬅ 왼쪽":"➡ 오른쪽"}</button>)}</div>}
           {pgImg&&is2&&!showPv&&<div style={{marginBottom:8,position:"relative",borderRadius:8,overflow:"hidden",border:"1px solid #ddd",opacity:0.5}}><img src={pgImg} style={{width:"100%",display:"block"}}/><div style={{position:"absolute",top:0,left:side==="left"?"0":"50%",width:"50%",height:"100%",border:"2px solid #E8652D",boxSizing:"border-box"}}/><div style={{position:"absolute",top:0,left:side==="left"?"50%":"0",width:"50%",height:"100%",background:"rgba(0,0,0,0.3)"}}/></div>}
           {workImg&&!showPv&&<>
-            <div style={{fontSize:12,color:"#888",marginBottom:6}}>👆 문제 시작점을 터치하세요{is2&&<span style={{color:"#d97706"}}> ({side==="left"?"왼쪽":"오른쪽"})</span>}</div>
-            {/* 이미지 (터치 영역) */}
-            <div style={{position:"relative",borderRadius:8,overflow:"hidden",border:"2px solid "+(pdfLbl==="question"?"#059669":"#d97706"),marginBottom:8}} onClick={onTap}><img ref={imgRef} src={workImg} style={{width:"100%",display:"block",pointerEvents:"none"}}/>{markers.map((m,i)=><div key={i} style={{position:"absolute",left:0,top:m.y*100+"%",width:"100%",borderTop:"2px dashed #ef4444",pointerEvents:"none"}}><span style={{fontSize:9,fontWeight:800,color:"#fff",background:"#ef4444",padding:"1px 5px",borderRadius:"0 0 4px 0"}}>{m.num}▼</span></div>)}</div>
-            {/* 마커 편집 (이미지 아래) */}
-            {markers.length>0&&<div>
+            {/* 모드 토글 */}
+            <div style={{display:"flex",borderRadius:6,overflow:"hidden",border:"1px solid #ddd",marginBottom:8}}>
+              <button onClick={()=>{setCropMode("box");setMarkers([])}} style={{flex:1,padding:"6px 0",border:"none",fontSize:11,fontWeight:700,cursor:"pointer",fontFamily:"inherit",background:cropMode==="box"?"#E8652D":"#fff",color:cropMode==="box"?"#fff":"#888"}}>▢ 네모 선택</button>
+              <button onClick={()=>{setCropMode("line");setBoxes([]);setDragging(null)}} style={{flex:1,padding:"6px 0",border:"none",fontSize:11,fontWeight:700,cursor:"pointer",fontFamily:"inherit",background:cropMode==="line"?"#E8652D":"#fff",color:cropMode==="line"?"#fff":"#888"}}>━ 줄 자르기</button>
+            </div>
+            <div style={{fontSize:11,color:"#888",marginBottom:4}}>{cropMode==="box"?"👆 네모로 드래그하세요":"👆 문제 시작점을 터치하세요"}{is2&&<span style={{color:"#d97706"}}> ({side==="left"?"왼쪽":"오른쪽"})</span>}</div>
+            {/* 이미지 */}
+            <div style={{position:"relative",borderRadius:8,overflow:"hidden",border:"2px solid "+(pdfLbl==="question"?"#059669":"#d97706"),marginBottom:8,touchAction:"none",userSelect:"none"}}
+              {...(cropMode==="box"?{onMouseDown:onBoxDown,onMouseMove:onBoxMove,onMouseUp:onBoxEnd,onTouchStart:onBoxDown,onTouchMove:onBoxMove,onTouchEnd:onBoxEnd}:{onClick:onTap})}>
+              <img ref={imgRef} src={workImg} style={{width:"100%",display:"block",pointerEvents:"none",userSelect:"none"}}/>
+              {/* 줄 모드 마커 */}
+              {cropMode==="line"&&markers.map((m,i)=><div key={"m"+i} style={{position:"absolute",left:0,top:m.y*100+"%",width:"100%",borderTop:"2px dashed #ef4444",pointerEvents:"none"}}><span style={{fontSize:9,fontWeight:800,color:"#fff",background:"#ef4444",padding:"1px 5px",borderRadius:"0 0 4px 0"}}>{m.num}▼</span></div>)}
+              {/* 네모 모드 박스 */}
+              {cropMode==="box"&&boxes.map((b,i)=><div key={"b"+i} style={{position:"absolute",left:b.x*100+"%",top:b.y*100+"%",width:b.w*100+"%",height:b.h*100+"%",border:"2px solid #3b82f6",background:"rgba(59,130,246,0.12)",pointerEvents:"none",borderRadius:3}}><span style={{position:"absolute",top:-1,left:-1,fontSize:9,fontWeight:800,color:"#fff",background:"#3b82f6",padding:"1px 5px",borderRadius:"0 0 4px 0"}}>{b.num}</span></div>)}
+              {/* 드래그 중인 네모 */}
+              {dragging&&<div style={{position:"absolute",left:Math.min(dragging.sx,dragging.cx)*100+"%",top:Math.min(dragging.sy,dragging.cy)*100+"%",width:Math.abs(dragging.cx-dragging.sx)*100+"%",height:Math.abs(dragging.cy-dragging.sy)*100+"%",border:"2px dashed #3b82f6",background:"rgba(59,130,246,0.08)",pointerEvents:"none",borderRadius:3}}/>}
+            </div>
+            {/* 줄 모드 편집 */}
+            {cropMode==="line"&&markers.length>0&&<div>
               {markers.map((m,i)=><div key={i} style={{display:"flex",alignItems:"center",gap:4,marginBottom:2,padding:"3px 6px",background:"#f9f9f9",borderRadius:6,fontSize:12}}>
                 <input value={m.num} onChange={e=>updMk(i,e.target.value)} style={{width:40,padding:"2px 4px",border:"1px solid #ddd",borderRadius:4,fontSize:11,fontWeight:600,textAlign:"center",outline:"none"}}/>
                 <span style={{color:"#aaa",fontSize:10}}>번</span>
@@ -429,16 +456,27 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#2
                 <button onClick={()=>mvMk(i,0.015)} style={{fontSize:9,padding:"1px 4px",border:"1px solid #ddd",borderRadius:3,background:"#fff",cursor:"pointer"}}>▼</button>
                 <span style={{flex:1}}/><button onClick={()=>rmMk(i)} style={{fontSize:11,background:"none",border:"none",color:"#ccc",cursor:"pointer"}}>✕</button>
               </div>)}
-              {/* 해설 대상 쪽수 */}
+            </div>}
+            {/* 네모 모드 편집 */}
+            {cropMode==="box"&&boxes.length>0&&<div>
+              {boxes.map((b,i)=><div key={i} style={{display:"flex",alignItems:"center",gap:4,marginBottom:2,padding:"3px 6px",background:"#eff6ff",borderRadius:6,fontSize:12,border:"1px solid #bfdbfe"}}>
+                <div style={{width:18,height:18,borderRadius:4,background:"#3b82f6",color:"#fff",display:"flex",alignItems:"center",justifyContent:"center",fontSize:9,fontWeight:800,flexShrink:0}}>{i+1}</div>
+                <input value={b.num} onChange={e=>updBox(i,e.target.value)} style={{width:40,padding:"2px 4px",border:"1px solid #bfdbfe",borderRadius:4,fontSize:11,fontWeight:600,textAlign:"center",outline:"none"}}/>
+                <span style={{color:"#93c5fd",fontSize:10}}>번</span>
+                <span style={{flex:1}}/>
+                <button onClick={()=>rmBox(i)} style={{fontSize:11,background:"none",border:"none",color:"#93c5fd",cursor:"pointer"}}>✕</button>
+              </div>)}
+            </div>}
+            {/* 공통: 대상 쪽수 + 버튼 */}
+            {(cropMode==="line"?markers.length:boxes.length)>0&&<div>
               {pdfLbl==="solution"&&<div style={{display:"flex",alignItems:"center",gap:6,padding:"6px 8px",margin:"6px 0",background:"#fffbeb",borderRadius:6,border:"1px solid #fde68a"}}>
                 <span style={{fontSize:11,fontWeight:700,color:"#d97706",whiteSpace:"nowrap"}}>📙 대상 쪽수</span>
                 <input value={solPage} onChange={e=>setSolPage(e.target.value)} placeholder="문제집 쪽수 입력" style={{flex:1,padding:"4px 8px",border:"1px solid #fde68a",borderRadius:4,fontSize:12,fontWeight:600,outline:"none",textAlign:"center"}}/>
               </div>}
-              {/* 버튼들 */}
               <div style={{display:"flex",gap:4,marginTop:6}}>
-                <button onClick={genPv} style={{flex:1,padding:"8px 0",borderRadius:8,border:"1px solid #ddd",background:"#fff",fontWeight:700,fontSize:12,cursor:"pointer",fontFamily:"inherit",color:"#555"}}>✂️ 미리보기</button>
-                <button onClick={quickSaveGo} disabled={saving} style={{flex:2,padding:"8px 0",borderRadius:8,border:"none",background:"#059669",color:"#fff",fontWeight:700,fontSize:12,cursor:"pointer",fontFamily:"inherit",opacity:saving?0.6:1}}>{saving?"저장 중...":"⚡ 바로 저장 ("+markers.length+"개)"}</button>
-                <button onClick={()=>{setMarkers([]);setShowPv(false)}} style={{padding:"8px 10px",borderRadius:8,border:"1px solid #ddd",background:"#fff",fontSize:11,cursor:"pointer",fontFamily:"inherit",color:"#aaa"}}>초기화</button>
+                <button onClick={cropMode==="box"?genBoxPv:genPv} style={{flex:1,padding:"8px 0",borderRadius:8,border:"1px solid #ddd",background:"#fff",fontWeight:700,fontSize:12,cursor:"pointer",fontFamily:"inherit",color:"#555"}}>✂️ 미리보기</button>
+                <button onClick={quickSaveGo} disabled={saving} style={{flex:2,padding:"8px 0",borderRadius:8,border:"none",background:"#059669",color:"#fff",fontWeight:700,fontSize:12,cursor:"pointer",fontFamily:"inherit",opacity:saving?0.6:1}}>{saving?"저장 중...":"⚡ 바로 저장 ("+(cropMode==="box"?boxes.length:markers.length)+"개)"}</button>
+                <button onClick={()=>{setMarkers([]);setBoxes([]);setDragging(null);setShowPv(false)}} style={{padding:"8px 10px",borderRadius:8,border:"1px solid #ddd",background:"#fff",fontSize:11,cursor:"pointer",fontFamily:"inherit",color:"#aaa"}}>초기화</button>
               </div>
             </div>}
           </>}
