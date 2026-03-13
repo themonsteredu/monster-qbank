@@ -90,7 +90,8 @@ function Main({user,onLogout}){
   const[bnKey,setBnKey]=useState(0);
   const[snKey,setSnKey]=useState(0);
   const curBk=books.find(b=>b.id===selBook);
-  const is2=curBk?.cols===2;
+  const[viewCols,setViewCols]=useState(1);
+  const is2=viewCols===2;
 
   useEffect(()=>{(async()=>{try{const[b,p,s,a]=await Promise.all([sb.from("books").select("*").order("created_at"),sb.from("problems").select("id,book_id,page_num,num,question_url,solution_url").order("created_at"),sb.from("students").select("*").eq("user_id",user.id).order("name"),sb.from("assignments").select("*").eq("user_id",user.id).order("created_at",{ascending:false})]);if(b.error)setErrMsg("교재로드실패: "+b.error.message);if(p.error)setErrMsg("문제로드실패: "+p.error.message);if(b.data)setBooks(b.data);if(p.data)setProblems(p.data.map(x=>({...x,page_num:String(x.page_num||""),num:String(x.num||"")})));if(s.data)setStudents(s.data);if(a.data)setAssignments(a.data)}catch(e){console.error(e);setErrMsg("로드 오류: "+e.message)}setLoaded(true)})()},[sb,user]);
 
@@ -115,7 +116,7 @@ function Main({user,onLogout}){
   const extSide=useCallback(async s=>{if(!pgImg)return;setSide(s);setMarkers([]);setShowPv(false);setPvSlices([]);const img=new Image();img.src=pgImg;await new Promise(r=>{img.onload=r});const cv=document.createElement("canvas");const hw=Math.round(img.width/2);const sx=s==="left"?0:hw,sw=s==="left"?hw:img.width-hw;cv.width=sw;cv.height=img.height;cv.getContext("2d").drawImage(img,sx,0,sw,img.height,0,0,sw,img.height);setSideImg(cv.toDataURL("image/jpeg",0.75));cv.width=0;cv.height=0},[pgImg]);
   useEffect(()=>{if(pgImg&&is2)extSide("left")},[pgImg,is2,extSide]);
 
-  const onTap=e=>{if(!imgRef.current)return;const r=imgRef.current.getBoundingClientRect();const y=(e.clientY-r.top)/r.height;if(y<0.01||y>0.99)return;const nums=[...pgProbs.map(p=>p.num),...markers.map(m=>m.num)];let nx="1";if(nums.length)nx=String(Math.max(...nums.map(n=>parseInt(n)||0))+1);const u=[...markers,{y,num:nx}].sort((a,b)=>a.y-b.y);const base=parseInt(u[0]?.num)||1;u.forEach((m,i)=>{m.num=String(base+i)});setMarkers(u);setShowPv(false)};
+  const onTap=e=>{if(!imgRef.current)return;const r=imgRef.current.getBoundingClientRect();const y=(e.clientY-r.top)/r.height;if(y<0.01||y>0.99)return;const nums=[...pgProbs.map(p=>p.num),...markers.map(m=>m.num)];let nx="1";if(nums.length)nx=String(Math.max(...nums.map(n=>parseInt(n)||0))+1);const u=[...markers,{y,num:nx}].sort((a,b)=>a.y-b.y);setMarkers(u);setShowPv(false)};
   const rmMk=i=>{setMarkers(markers.filter((_,j)=>j!==i));setShowPv(false)};
   const updMk=(i,n)=>{const u=[...markers];u[i]={...u[i],num:n};setMarkers(u)};
   const mvMk=(i,d)=>{const u=[...markers];u[i]={...u[i],y:Math.max(0.01,Math.min(0.99,u[i].y+d))};setMarkers(u.sort((a,b)=>a.y-b.y));setShowPv(false)};
@@ -336,11 +337,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#2
 
       {books.map(b=>{
         const cnt=problems.filter(p=>p.book_id===b.id).length;
-        return<div key={b.id} onClick={()=>setSelBook(selBook===b.id?"":b.id)} style={{display:"flex",alignItems:"center",gap:8,padding:"10px 12px",marginBottom:4,background:selBook===b.id?"#fff8f5":"#fff",border:selBook===b.id?"1.5px solid #E8652D":"1px solid #eee",borderRadius:10,cursor:"pointer"}}>
+        return<div key={b.id} onClick={()=>{setSelBook(selBook===b.id?"":b.id);if(selBook!==b.id)setViewCols(b.cols||1)}} style={{display:"flex",alignItems:"center",gap:8,padding:"10px 12px",marginBottom:4,background:selBook===b.id?"#fff8f5":"#fff",border:selBook===b.id?"1.5px solid #E8652D":"1px solid #eee",borderRadius:10,cursor:"pointer"}}>
           <span style={{fontSize:14,fontWeight:600,color:"#333",flex:1}}>{b.name}</span>
-          <span style={{fontSize:11,color:"#aaa",background:"#f5f5f5",padding:"2px 8px",borderRadius:4}}>{b.cols}단</span>
           <span style={{fontSize:11,color:"#E8652D",fontWeight:700}}>{cnt}문제</span>
-          <button onClick={e=>{e.stopPropagation();togCol(b.id)}} style={{fontSize:10,padding:"3px 8px",borderRadius:4,border:"1px solid #ddd",background:"#fff",cursor:"pointer",fontFamily:"inherit"}}>단변경</button>
           <button onClick={e=>{e.stopPropagation();delBk(b.id)}} style={{background:"none",border:"none",color:"#ccc",fontSize:16,cursor:"pointer"}}>×</button>
         </div>;
       })}
@@ -361,10 +360,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#2
                 <div style={{flex:1,padding:"8px 10px",background:"#fffbeb",borderRadius:8,textAlign:"center",border:"1px solid #fde68a"}}><div style={{fontSize:18,fontWeight:800,color:"#d97706"}}>{withS.length}</div><div style={{fontSize:10,color:"#d97706"}}>📙 해설</div></div>
                 <div style={{flex:1,padding:"8px 10px",background:withQ.length===withS.length&&withQ.length>0?"#f0fdf4":"#fef2f2",borderRadius:8,textAlign:"center",border:"1px solid "+(withQ.length===withS.length&&withQ.length>0?"#bbf7d0":"#fecaca")}}><div style={{fontSize:18,fontWeight:800,color:withQ.length===withS.length&&withQ.length>0?"#059669":"#dc2626"}}>{withQ.filter(p=>p.solution_url).length}/{withQ.length}</div><div style={{fontSize:10,color:"#888"}}>매칭완료</div></div>
               </div>
-              {/* 문제 목록 */}
+              {/* 문제 목록 (접기/펼치기) */}
               {qPgs.length>0&&<div style={{background:"#fff",borderRadius:8,border:"1px solid #eee",overflow:"hidden",marginBottom:6}}>
-                <div style={{padding:"5px 10px",background:"#f0fdf4",borderBottom:"1px solid #eee",fontSize:11,fontWeight:700,color:"#059669",display:"flex",justifyContent:"space-between"}}><span>📗 문제 (페이지별)</span><span style={{fontWeight:400,color:"#aaa"}}>길게 누르면 삭제</span></div>
-                {qPgs.map(pg=>{
+                <button onClick={()=>setAExpPage(aExpPage==="probList"?"":"probList")} style={{width:"100%",padding:"6px 10px",background:"#f0fdf4",borderBottom:"1px solid #eee",border:"none",fontSize:11,fontWeight:700,color:"#059669",display:"flex",justifyContent:"space-between",cursor:"pointer",fontFamily:"inherit"}}><span>📗 문제 ({withQ.length}개 · {qPgs.length}페이지)</span><span style={{color:"#aaa"}}>{aExpPage==="probList"?"▼":"▶"}</span></button>
+                {aExpPage==="probList"&&qPgs.map(pg=>{
                   const pgPs=withQ.filter(p=>p.page_num===pg).sort((a,b)=>(parseFloat(a.num)||0)-(parseFloat(b.num)||0));
                   return<div key={pg} style={{padding:"5px 10px",borderBottom:"1px solid #f5f5f5",display:"flex",alignItems:"center",gap:4,flexWrap:"wrap"}}>
                     <span style={{fontSize:11,fontWeight:700,color:"#E8652D",minWidth:32}}>{pg}p</span>
@@ -374,12 +373,16 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#2
               </div>}
               {/* 해설만 있는 항목 (문제 미매칭) */}
               {onlyS.length>0&&<div style={{background:"#fff",borderRadius:8,border:"1px solid #fde68a",overflow:"hidden",marginBottom:6}}>
-                <div style={{padding:"5px 10px",background:"#fffbeb",borderBottom:"1px solid #fde68a",fontSize:11,fontWeight:700,color:"#d97706",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                <button onClick={()=>setAExpPage(aExpPage==="orphans"?"":"orphans")} style={{width:"100%",padding:"5px 10px",background:"#fffbeb",borderBottom:"1px solid #fde68a",border:"none",fontSize:11,fontWeight:700,color:"#d97706",display:"flex",justifyContent:"space-between",alignItems:"center",cursor:"pointer",fontFamily:"inherit"}}>
                   <span>⚠️ 해설만 등록됨 ({onlyS.length}개)</span>
-                  <button onClick={()=>mergeOrphans(selBook)} style={{fontSize:10,padding:"2px 8px",borderRadius:4,border:"1px solid #d97706",background:"#fff",color:"#d97706",cursor:"pointer",fontWeight:700,fontFamily:"inherit"}}>자동 병합</button>
-                </div>
-                <div style={{padding:"5px 10px",display:"flex",gap:4,flexWrap:"wrap"}}>
-                  {onlyS.sort((a,b)=>(parseFloat(a.num)||0)-(parseFloat(b.num)||0)).map(p=><span key={p.id} style={{fontSize:10,padding:"1px 6px",borderRadius:4,background:"#fffbeb",border:"1px solid #fde68a",color:"#d97706"}}>{p.num}번</span>)}
+                  <div style={{display:"flex",gap:4,alignItems:"center"}}>
+                    <span onClick={e=>{e.stopPropagation();mergeOrphans(selBook)}} style={{fontSize:10,padding:"2px 8px",borderRadius:4,border:"1px solid #d97706",background:"#fff",color:"#d97706",cursor:"pointer",fontWeight:700}}>자동 병합</span>
+                    <span style={{color:"#aaa",fontSize:10}}>{aExpPage==="orphans"?"▼":"▶"}</span>
+                  </div>
+                </button>
+                {aExpPage==="orphans"&&<div style={{padding:"5px 10px",display:"flex",gap:4,flexWrap:"wrap"}}>
+                  {onlyS.sort((a,b)=>(parseInt(a.page_num)||0)-(parseInt(b.page_num)||0)||(parseFloat(a.num)||0)-(parseFloat(b.num)||0)).map(p=><span key={p.id} style={{fontSize:10,padding:"1px 6px",borderRadius:4,background:"#fffbeb",border:"1px solid #fde68a",color:"#d97706"}}>{p.page_num}p {p.num}번</span>)}
+                </div>}
                 </div>
               </div>}
             </div>;
@@ -394,8 +397,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#2
         </div>
         :<div style={{background:"#fff",border:"1px solid #eee",borderRadius:10,padding:12}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
-            <span style={{fontSize:13,fontWeight:700,color:pdfLbl==="question"?"#059669":"#d97706"}}>{pdfLbl==="question"?"📗 문제집":"📙 해설지"} ({pdfPages}p){is2&&<span style={{fontSize:10,color:"#d97706",marginLeft:4}}>[2단]</span>}</span>
+            <span style={{fontSize:13,fontWeight:700,color:pdfLbl==="question"?"#059669":"#d97706"}}>{pdfLbl==="question"?"📗 문제집":"📙 해설지"} ({pdfPages}p)</span>
             <div style={{display:"flex",gap:4}}>
+              <button onClick={()=>{setViewCols(viewCols===2?1:2);resetCr()}} style={{fontSize:10,padding:"3px 8px",borderRadius:4,border:is2?"2px solid #E8652D":"1px solid #ddd",background:is2?"#fff5f0":"#fff",color:is2?"#E8652D":"#888",cursor:"pointer",fontWeight:700,fontFamily:"inherit"}}>{is2?"2단→1단":"1단→2단"}</button>
               <label style={{fontSize:10,padding:"3px 8px",borderRadius:4,border:"1px solid #ddd",background:"#fff",cursor:"pointer",fontFamily:"inherit"}}>{pdfLbl==="question"?"📙해설":"📗문제"}<input type="file" accept="application/pdf" onChange={e=>loadPdf(e,pdfLbl==="question"?"solution":"question")} hidden/></label>
               <button onClick={closePdf} style={{fontSize:10,padding:"3px 8px",borderRadius:4,border:"1px solid #ddd",background:"#fff",cursor:"pointer",fontFamily:"inherit"}}>닫기</button>
             </div>
